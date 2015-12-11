@@ -82,26 +82,22 @@ getAlignments = do
     if empty
         then return []
         else do
---            r <- remaining
-            if False
-                then return []
-            else do 
-                l <- fromIntegral <$> getWord32le
-                refID <- fromIntegral <$> getWord32le
-                pos <- fromIntegral <$> getWord32le
-                l_read_name <- fromIntegral <$> getWord8
-                mapq <- fromIntegral <$> getWord8 
-                bin <- getWord16le
-                n_cigar_op <- fromIntegral <$> getWord16le
-                flag <- getWord16le
-                l_seq <- fromIntegral <$> getWord32le
-                next_refID <- getWord32le
-                next_pos <- getWord32le
-                tlen <- fromIntegral <$> getWord32le
-                read_name <- getByteString l_read_name
-                cigar_ops <- replicateM n_cigar_op getWord32le
-                seq <- getByteString (div (l_seq + 1) 2)
-                qual <- getByteString l_seq 
+            l <- fromIntegral <$> getWord32le
+            refID <- fromIntegral <$> getWord32le
+            pos <- fromIntegral <$> getWord32le
+            l_read_name <- fromIntegral <$> getWord8
+            mapq <- fromIntegral <$> getWord8 
+            bin <- getWord16le
+            n_cigar_op <- fromIntegral <$> getWord16le
+            flag <- getWord16le
+            l_seq <- fromIntegral <$> getWord32le
+            next_refID <- getWord32le
+            next_pos <- getWord32le
+            tlen <- fromIntegral <$> getWord32le
+            read_name <- getByteString l_read_name
+            cigar_ops <- replicateM n_cigar_op getWord32le
+            seq <- getByteString (div (l_seq + 1) 2)
+            qual <- getByteString l_seq 
                 
                 replicateM (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2)) getWord8
                 rest <- getAlignments
