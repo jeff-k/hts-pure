@@ -98,10 +98,9 @@ getAlignments = do
             cigar_ops <- replicateM n_cigar_op getWord32le
             seq <- getByteString (div (l_seq + 1) 2)
             qual <- getByteString l_seq 
-                
-                replicateM (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2)) getWord8
-                rest <- getAlignments
-                return ((Alignment refID pos mapq (Bchar.unpack read_name) (concat (map readb (B.unpack seq))) (map readcig cigar_ops)):rest)
+            tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2))
+            rest <- getAlignments
+            return ((Alignment refID pos mapq (Bchar.unpack read_name) (concat (map readb (B.unpack seq))) (map readcig cigar_ops)):rest)
 
 ref :: Get Contig
 ref = do
@@ -175,7 +174,25 @@ getBgzf = do
     cdata <- getByteString (bsize - xlen - 19)
     crc32 <- getWord32le
     isize <- fromIntegral <$> getWord32le
-    return $ Bgzf id1 cdata (bsize - xlen - 19)
+    return $ Bgzf id1 cdata isize
+
+dParam :: Bgzf -> DecompressParams
+dParam block =
+    DecompressParams (decompressWindowBits d) (isize block) Nothing
+    where
+        d = defaultDecompressParams
+
+getBlocks :: L.ByteString -> [B.ByteString]
+getBlocks i = go decoder i
+    where
+        decoder = runGetIncremental getBgzf
+        go :: Decoder Bgzf -> L.ByteString -> [B.ByteString]
+        go (Done r _c block) input =
+            (L.toStrict $ decompressWith (dParam block) (L.fromStrict . cdata $ block)) : go decoder (L.fromStrict r)
+        go (Partial k) input =
+            go (k $ Just (L.toStrict input)) input
+        go (Fail rem _c msg) _input =
+            error msg
 
 main :: IO ()
 main = do
@@ -184,6 +201,8 @@ main = do
 
     h <- openFile (path!!0) ReadMode
     bs <- runGet blocks <$> L.hGetContents h
-
+   
+    x <- getBlocks <$> (L.hGetContents h) 
+    print $ length x 
     let (y, _) = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
         mapM_ putStrLn (map show (alignments y))
