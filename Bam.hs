@@ -139,11 +139,11 @@ bin = do
     chunks <- replicateM n_chunks chunk 
     return $ Bin bin_id chunks
 
-getBamfile :: Get (Bamfile, String)
+getBamfile :: Get Bamfile
 getBamfile = do
     h <- getHeader
     as <- getAlignments
-    return $ (Bamfile h as, "Done")
+    return $ Bamfile h as
 
 getIndex :: Get Index
 getIndex = do
@@ -182,7 +182,7 @@ dParam block =
     where
         d = defaultDecompressParams
 
-getBlocks :: L.ByteString -> [B.ByteString]
+getBlocks :: L.ByteString -> [B.ByteString] 
 getBlocks i = go decoder i
     where
         decoder = runGetIncremental getBgzf
@@ -190,9 +190,21 @@ getBlocks i = go decoder i
         go (Done r _c block) input =
             (L.toStrict $ decompressWith (dParam block) (L.fromStrict . cdata $ block)) : go decoder (L.fromStrict r)
         go (Partial k) input =
-            go (k $ Just (L.toStrict input)) input
+            go (k . chead $ input) (ctail input)
         go (Fail rem _c msg) _input =
             error msg
+
+chead :: L.ByteString -> Maybe B.ByteString
+chead i =
+    case L.toChunks i of
+        bs:_ -> Just bs
+        _ -> Nothing
+
+ctail :: L.ByteString -> L.ByteString
+ctail i =
+    case L.toChunks i of
+        _:tail -> (L.fromStrict (B.concat tail))
+        _ -> L.empty 
 
 main :: IO ()
 main = do
@@ -200,9 +212,12 @@ main = do
     i <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
 
     h <- openFile (path!!0) ReadMode
-    bs <- runGet blocks <$> L.hGetContents h
-   
-    x <- getBlocks <$> (L.hGetContents h) 
-    print $ length x 
-    let (y, _) = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
-        mapM_ putStrLn (map show (alignments y))
+--    bs <- runGet blocks <$> L.hGetContents h
+    c <- L.hGetContents h  
+    let l = getBlocks c in
+--    x <- getBlocks s 
+        print $ length l
+--    let y = runGet getBamfile $ (L.fromStrict . B.concat $ x) in
+--    let y = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
+--        mapM_ putStrLn (map show (alignments y))
+
