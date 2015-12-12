@@ -211,13 +211,10 @@ main = do
     path <- getArgs
     i <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
 
+    print i
     h <- openFile (path!!0) ReadMode
---    bs <- runGet blocks <$> L.hGetContents h
-    c <- L.hGetContents h  
-    let l = getBlocks c in
---    x <- getBlocks s 
-        print $ length l
---    let y = runGet getBamfile $ (L.fromStrict . B.concat $ x) in
---    let y = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
---        mapM_ putStrLn (map show (alignments y))
+    bs <- runGet blocks <$> L.hGetContents h
+
+    let y = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
+        mapM_ putStrLn (map show (alignments y))
 
