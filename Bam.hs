@@ -54,8 +54,10 @@ instance Show Bin where
 instance Show ContigIndex where
     show c = show (bins c)
 
-reg2bin :: Int -> Int -> Int
-reg2bin _ = id
+reg2bin :: Word64 -> Word64 -> Word64
+reg2bin b e
+    | (b `shiftR` 14) == (e `shiftR` 14) = ((((1 `shiftL` 15) - 1) `div` 7) + (b `shiftR` 14))
+    | True = 0
 
 --reg2bins :: Int -> Int -> [Bin]
 --reg2bins _ _ = [Bin 3 3]
@@ -230,8 +232,7 @@ main = do
     print m
     print vo
     print bo
-
---    beg = (43483180::Word64) `
+    print $ reg2bin 43483178 43483190
 
     h <- openFile (path!!0) ReadMode
 
