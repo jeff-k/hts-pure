@@ -16,11 +16,13 @@ import Control.Applicative
 import Control.Monad
 
 data Bgzf = Bgzf {id1::Int, cdata::B.ByteString, isize::Int} deriving Show
-data Chunk = Chunk {beg::Int, end::Int} deriving Show
-data Bin = Bin {m::Int, chunks::[Chunk]}
+data Chunk = Chunk {beg::Word64, end::Word64} deriving Show
+data Bin = Bin {m::Int, b_chunks::[Chunk]}
 
 data Index = Index {contigs::[ContigIndex], n_no_coor::Int}
 data Header = Header {text::String, refs::[Contig]}
+
+data Rtree = Rleaf Int | Rtree [Rtree]
 
 data Cigar = Cigar {op_len::Int, op::Char}
 
@@ -47,10 +49,16 @@ instance Show Bamfile where
     show b =  show (header b) ++ "\nt" ++ show (alignments b)
 
 instance Show Bin where
-    show b = show (m b)
+    show b = show (m b) ++ show (b_chunks b)
 
 instance Show ContigIndex where
     show c = show (bins c)
+
+reg2bin :: Int -> Int -> Int
+reg2bin _ = id
+
+--reg2bins :: Int -> Int -> [Bin]
+--reg2bins _ _ = [Bin 3 3]
 
 blocks :: Get [Bgzf]
 blocks = do
@@ -114,7 +122,7 @@ contigIndex = do
     n_bin <- fromIntegral <$> getWord32le
     bins <- replicateM n_bin bin
     n_intv <- fromIntegral <$> getWord32le
-    offsets <- replicateM n_intv (getWord32le >> getWord32le)
+    offsets <- replicateM n_intv getWord64le
     return $ ContigIndex bins (fromIntegral <$> offsets)
 
 getHeader :: Get Header
@@ -128,16 +136,16 @@ getHeader = do
 
 chunk :: Get Chunk
 chunk = do
-    beg <- fromIntegral <$> getWord64le
-    end <- fromIntegral <$> getWord64le
+    beg <- getWord64le
+    end <- getWord64le
     return $ Chunk beg end
 
 bin :: Get Bin
 bin = do
     bin_id <- fromIntegral <$> getWord32le
     n_chunks <- fromIntegral <$> getWord32le
-    chunks <- replicateM n_chunks chunk 
-    return $ Bin bin_id chunks
+    b_chunks <- replicateM n_chunks chunk 
+    return $ Bin bin_id b_chunks
 
 getBamfile :: Get Bamfile
 getBamfile = do
@@ -206,15 +214,22 @@ ctail i =
         _:tail -> (L.fromStrict (B.concat tail))
         _ -> L.empty 
 
+voff :: Index -> (Word64, Word64)
+voff i =
+    (((beg v) `shiftR` 16), ((beg v) .&. 65535))
+    where v = ((b_chunks $ (bins ((contigs i)!!1))!!0)!!0)
+
 main :: IO ()
 main = do
     path <- getArgs
-    i <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
+    (vo, bo) <- voff <$> runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
+    print vo
+    print bo
 
-    print i
     h <- openFile (path!!0) ReadMode
-    bs <- runGet blocks <$> L.hGetContents h
-
-    let y = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
-        mapM_ putStrLn (map show (alignments y))
-
+--        bs <- runGet blocks <$> L.hGetContents h
+    hSeek h AbsoluteSeek (fromIntegral vo)
+    bs <- runGet blocks <$> L.hGetContents h       
+--    let y = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
+--        mapM_ putStrLn (map show (alignments y))
+    print $ length bs
