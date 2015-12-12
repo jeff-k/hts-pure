@@ -67,8 +67,9 @@ blocks = do
         then return []
         else do
             block <- getBgzf 
-            rest <- blocks
-            return (block:rest)
+            return (block:[])
+--            rest <- blocks
+--            return (block:rest)
 
 readb :: Word8 -> String
 readb s =
@@ -107,8 +108,8 @@ getAlignments = do
             seq <- getByteString (div (l_seq + 1) 2)
             qual <- getByteString l_seq 
             tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2))
-            rest <- getAlignments
-            return ((Alignment refID pos mapq (Bchar.unpack read_name) (concat (map readb (B.unpack seq))) (map readcig cigar_ops)):rest)
+--            rest <- getAlignments
+            return ((Alignment refID pos mapq (Bchar.unpack read_name) (concat (map readb (B.unpack seq))) (map readcig cigar_ops)):[])
 
 ref :: Get Contig
 ref = do
@@ -217,7 +218,7 @@ ctail i =
 voff :: Index -> (Word64, Word64)
 voff i =
     (((beg v) `shiftR` 16), ((beg v) .&. 65535))
-    where v = ((b_chunks $ (bins ((contigs i)!!1))!!0)!!0)
+    where v = ((b_chunks $ (bins ((contigs i)!!0))!!1)!!0)
 
 main :: IO ()
 main = do
@@ -227,9 +228,12 @@ main = do
     print bo
 
     h <- openFile (path!!0) ReadMode
---        bs <- runGet blocks <$> L.hGetContents h
+
     hSeek h AbsoluteSeek (fromIntegral vo)
     bs <- runGet blocks <$> L.hGetContents h       
+    let x = (map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x))) bs)!!0 in
+        print $ runGet getAlignments $ L.drop (fromIntegral bo) x
+
 --    let y = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
 --        mapM_ putStrLn (map show (alignments y))
-    print $ length bs
+--    print $ length bs
