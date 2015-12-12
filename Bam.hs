@@ -215,17 +215,23 @@ ctail i =
         _:tail -> (L.fromStrict (B.concat tail))
         _ -> L.empty 
 
-voff :: Index -> (Word64, Word64)
+voff :: Index -> (Int, Word64, Word64)
 voff i =
-    (((beg v) `shiftR` 16), ((beg v) .&. 65535))
-    where v = ((b_chunks $ (bins ((contigs i)!!0))!!1)!!0)
+    (x, ((beg v) `shiftR` 16), ((beg v) .&. 65535))
+    where
+        v = ((b_chunks $ (bins ((contigs i)!!0))!!b)!!0)
+        x = m $ (bins ((contigs i)!!0))!!b
+        b = 1
 
 main :: IO ()
 main = do
     path <- getArgs
-    (vo, bo) <- voff <$> runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
+    (m, vo, bo) <- voff <$> runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
+    print m
     print vo
     print bo
+
+--    beg = (43483180::Word64) `
 
     h <- openFile (path!!0) ReadMode
 
