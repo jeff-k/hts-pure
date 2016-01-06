@@ -1,4 +1,5 @@
 import System.IO
+import System.Directory
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
@@ -225,14 +226,16 @@ voff i =
         x = m $ (bins ((contigs i)!!0))!!b
         b = 1
 
+buildIndex :: String -> IO (Maybe Index)
+buildIndex bai = do
+    e <- doesFileExist bai
+    when e (Just <$> (runGet getIndex <$> L.readFile bai))
+    return Nothing
+
 main :: IO ()
 main = do
     path <- getArgs
-    (m, vo, bo) <- voff <$> runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
+    index <- buildIndex (path!!0 ++ ".bai")
+    case index of
+        Just i -> print $ contigs i
 
-    h <- openFile (path!!0) ReadMode
-
-    hSeek h AbsoluteSeek (fromIntegral vo)
-    bs <- runGet blocks <$> L.hGetContents h       
-    let x = (map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x))) bs)!!0 in
-        print $ runGet getAlignments $ L.drop (fromIntegral bo) x
