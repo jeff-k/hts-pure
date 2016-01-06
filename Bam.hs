@@ -229,10 +229,6 @@ main :: IO ()
 main = do
     path <- getArgs
     (m, vo, bo) <- voff <$> runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
-    print m
-    print vo
-    print bo
-    print $ reg2bin 43483178 43483190
 
     h <- openFile (path!!0) ReadMode
 
@@ -240,7 +236,3 @@ main = do
     bs <- runGet blocks <$> L.hGetContents h       
     let x = (map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x))) bs)!!0 in
         print $ runGet getAlignments $ L.drop (fromIntegral bo) x
-
---    let y = runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
---        mapM_ putStrLn (map show (alignments y))
---    print $ length bs
