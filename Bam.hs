@@ -13,11 +13,12 @@ import Data.Word
 import Data.Int
 import Data.Bits
 
+import qualified Data.Map as M
 import Control.Applicative
 import Control.Monad
 
 data Bgzf = Bgzf {id1::Int, cdata::B.ByteString, isize::Int} deriving Show
-data Chunk = Chunk {beg::Word64, end::Word64} deriving Show
+data Chunk = Chunk {beg::Word64, end::Word64}
 data Bin = Bin {m::Int, b_chunks::[Chunk]}
 
 data Index = Index {contigs::[ContigIndex], n_no_coor::Int}
@@ -41,6 +42,9 @@ instance Show Cigar where
 instance Show Header where
     show s = text s ++ show (length (refs s)) ++ "\n\t" ++ show (refs s) 
 
+instance Show Chunk where
+    show c = (show (beg c)) ++ "-" ++ (show (end c))
+
 instance Show Index where
     show i = "Contigs:\t" ++ show (length (contigs i)) ++ "\n\t" ++ show (contigs i) ++ "\n\t"
 
@@ -50,7 +54,7 @@ instance Show Bamfile where
     show b =  show (header b) ++ "\nt" ++ show (alignments b)
 
 instance Show Bin where
-    show b = show (m b) ++ show (b_chunks b)
+    show b = show (m b) ++ (foldr (++) "" (map (\x -> "\t" ++ (show x) ++ "\n") (b_chunks b)))
 
 instance Show ContigIndex where
     show c = show (bins c)
@@ -234,13 +238,21 @@ ctail i =
         _:tail -> (L.fromStrict (B.concat tail))
         _ -> L.empty 
 
-voff :: Index -> (Int, Word64, Word64)
-voff i =
-    (x, ((beg v) `shiftR` 16), ((beg v) .&. 65535))
+splito :: Bin -> (Int, Word64, Word64)
+splito x = (m x, (v `shiftR` 16), (v .&. 65535))
     where
-        v = ((b_chunks $ (bins ((contigs i)!!0))!!b)!!0)
-        x = m $ (bins ((contigs i)!!0))!!b
-        b = 1
+        v = beg $ b_chunks x
+        
+
+voff :: Index -> [(Int, Word64, Word64)]
+voff i bin =
+    (x, ((beg v) `shiftR` 16), ((beg v) .&. 65535))
+    map f chunks
+    where
+        f = (x, v `shiftR` 16), (v .&. 65535))
+        bs = (bins ((contigs i)!!0))
+        v = beg $ b_chunks x
+        x = m $ (bins ((contigs i)!!0))!!bin
 
 buildIndex :: String -> IO Index
 buildIndex bai = 
@@ -253,7 +265,12 @@ main = do
     path <- getArgs
 --    index <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
     index <- buildIndex (path!!0 ++ ".bai")
-    print $ length (contigs index)
---    case index of
---        Just i -> print $ contigs i
 
+    h <- openFile (path!!0) ReadMode  
+--    hSeek h AbsoluteSeek (fromIntegral vo)
+    bs <- runGet blocks <$> L.hGetContents h
+
+    hSeek h AbsoluteSeek (beg $ (b_chunks (bins ((contigs index)!!0)!!0)!!0))
+    let x = (map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x))) bs)!!0 in
+-       print $ runGet getAlignments $ L.drop (fromIntegral bo) x
+        
