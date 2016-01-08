@@ -55,11 +55,27 @@ instance Show Bin where
 instance Show ContigIndex where
     show c = show (bins c)
 
+log_shift :: Int -> Word64 -> Word64 -> Bool
+log_shift l b e =
+    (b `shiftR` l) == (e `shiftR` l)
+
+calc_bin :: Int -> Int -> Word64 -> Word64
+calc_bin l c b =
+    (((1 `shiftL` c) - 1) `div` 7) + (b `shiftR` l)
+
 reg2bin :: Word64 -> Word64 -> Word64
 reg2bin b e
-    | (b `shiftR` 14) == (e `shiftR` 14) = ((((1 `shiftL` 15) - 1) `div` 7) + (b `shiftR` 14))
+    | log_shift 14 b e = calc_bin 14 15 b
+    | log_shift 17 b e = calc_bin 17 12 b
+    | log_shift 20 b e = calc_bin 20 9 b
+    | log_shift 23 b e = calc_bin 23 6 b
+    | log_shift 26 b e = calc_bin 26 3 b
     | True = 0
 
+bin2reg :: Word64 -> Word64 -> Word64
+bin2reg b e
+    | True = 0
+ 
 --reg2bins :: Int -> Int -> [Bin]
 --reg2bins _ _ = [Bin 3 3]
 
@@ -226,16 +242,18 @@ voff i =
         x = m $ (bins ((contigs i)!!0))!!b
         b = 1
 
-buildIndex :: String -> IO (Maybe Index)
-buildIndex bai = do
-    e <- doesFileExist bai
-    when e (Just <$> (runGet getIndex <$> L.readFile bai))
-    return Nothing
+buildIndex :: String -> IO Index
+buildIndex bai = 
+    --e <- doesFileExist bai
+    --when e
+    runGet getIndex <$> L.readFile bai
 
 main :: IO ()
 main = do
     path <- getArgs
+--    index <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
     index <- buildIndex (path!!0 ++ ".bai")
-    case index of
-        Just i -> print $ contigs i
+    print $ length (contigs index)
+--    case index of
+--        Just i -> print $ contigs i
 
