@@ -1,4 +1,4 @@
-module Bam (bamfile) where
+module Bam (bamfile,header) where
 import System.IO
 import System.Directory
 
@@ -147,5 +147,4 @@ dParam block =
 bamfile :: Handle -> IO Bamfile
 bamfile h = do
     bs <- runGet blocks <$> L.hGetContents h
-    b <- runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
-    return b
+    return $ runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
