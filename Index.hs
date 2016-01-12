@@ -1,4 +1,4 @@
-module Index (getIndex) where {
+module Index (getIndex) where
 
 import System.IO
 
@@ -91,4 +91,3 @@ voff i =
     map f i
     where
         f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
-}
