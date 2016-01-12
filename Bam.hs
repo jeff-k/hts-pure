@@ -1,3 +1,4 @@
+module Bam where {
 import System.IO
 import System.Directory
 
@@ -19,10 +20,7 @@ import Control.Applicative
 import Control.Monad
 
 data Bgzf = Bgzf {id1::Int, cdata::B.ByteString, isize::Int} deriving Show
-data Chunk = Chunk {beg::Word64, end::Word64}
-data Bin = Bin {m::Int, b_chunks::[Chunk]}
 
-data Index = Index {contigs::[ContigIndex], n_no_coor::Int}
 data Header = Header {text::String, refs::[Contig]}
 
 data Cigar = Cigar {op_len::Int, op::Char}
@@ -30,7 +28,6 @@ data Cigar = Cigar {op_len::Int, op::Char}
 data Alignment = Alignment {pos::Int, refID::Int, r::Int, read_name::String, seq_a::String, cigar::[Cigar]}
 
 data Contig = Contig {name::String} deriving Show
-data ContigIndex = ContigIndex {bins::[Bin], ioffsets::[Int]}
 
 instance Show Alignment where
     show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++ (show . refID $ a) ++ "\t" ++ (show . r $ a) ++ "\t" ++ (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
@@ -41,46 +38,10 @@ instance Show Cigar where
 instance Show Header where
     show s = text s ++ show (length (refs s)) ++ "\n\t" ++ show (refs s) 
 
-instance Show Chunk where
-    show c = (show (beg c)) ++ "-" ++ (show (end c))
-
-instance Show Index where
-    show i = "Contigs:\t" ++ show (length (contigs i)) ++ "\n\t" ++ show (contigs i) ++ "\n\t"
-
 data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
 
 instance Show Bamfile where
     show b =  show (header b) ++ "\nt" ++ show (alignments b)
-
-instance Show Bin where
-    show b = show (m b) ++ (foldr (++) "" (map (\x -> "\t" ++ (show x) ++ "\n") (b_chunks b)))
-
-instance Show ContigIndex where
-    show c = show (bins c)
-
-log_shift :: Int -> Word64 -> Word64 -> Bool
-log_shift l b e =
-    (b `shiftR` l) == (e `shiftR` l)
-
-calc_bin :: Int -> Int -> Word64 -> Word64
-calc_bin l c b =
-    (((1 `shiftL` c) - 1) `div` 7) + (b `shiftR` l)
-
-reg2bin :: Word64 -> Word64 -> Word64
-reg2bin b e
-    | log_shift 14 b e = calc_bin 14 15 b
-    | log_shift 17 b e = calc_bin 17 12 b
-    | log_shift 20 b e = calc_bin 20 9 b
-    | log_shift 23 b e = calc_bin 23 6 b
-    | log_shift 26 b e = calc_bin 26 3 b
-    | True = 0
-
-bin2reg :: Word64 -> Word64 -> Word64
-bin2reg b e
-    | True = 0
- 
---reg2bins :: Int -> Int -> [Bin]
---reg2bins _ _ = [Bin 3 3]
 
 blocks :: Get [Bgzf]
 blocks = do
@@ -140,14 +101,6 @@ ref = do
     l_ref <- fromIntegral <$> getWord32le
     return $ Contig (Bchar.unpack name)
 
-contigIndex :: Get ContigIndex
-contigIndex = do
-    n_bin <- fromIntegral <$> getWord32le
-    bins <- replicateM n_bin bin
-    n_intv <- fromIntegral <$> getWord32le
-    offsets <- replicateM n_intv getWord64le
-    return $ ContigIndex bins (fromIntegral <$> offsets)
-
 getHeader :: Get Header
 getHeader = do
     getByteString 4
@@ -157,35 +110,11 @@ getHeader = do
     refs <- replicateM n_ref ref
     return $ Header (Bchar.unpack t) refs
 
-chunk :: Get Chunk
-chunk = do
-    beg <- getWord64le
-    end <- getWord64le
-    return $ Chunk beg end
-
-bin :: Get Bin
-bin = do
-    bin_id <- fromIntegral <$> getWord32le
-    n_chunks <- fromIntegral <$> getWord32le
-    b_chunks <- replicateM n_chunks chunk 
-    return $ Bin bin_id b_chunks
-
 getBamfile :: Get Bamfile
 getBamfile = do
     h <- getHeader
     as <- getAlignments
     return $ Bamfile h as
-
-getIndex :: Get Index
-getIndex = do
-    getByteString 4
-    n_ref <- fromIntegral <$> getWord32le
-    cs <- replicateM n_ref contigIndex
-    empty <- isEmpty
-    if empty
-        then return $ Index cs 0
-        else do n_no_coor <- fmap fromIntegral getWord32le
-                return $ Index cs n_no_coor
 
 getBgzf :: Get Bgzf
 getBgzf = do
@@ -225,31 +154,5 @@ getBlocks i = go decoder i
         go (Fail rem _c msg) _input =
             error msg
 
-chead :: L.ByteString -> Maybe B.ByteString
-chead i =
-    case L.toChunks i of
-        bs:_ -> Just bs
-        _ -> Nothing
 
-ctail :: L.ByteString -> L.ByteString
-ctail i =
-    case L.toChunks i of
-        _:tail -> (L.fromStrict (B.concat tail))
-        _ -> L.empty 
-
-voff :: [Chunk] -> [(Int, Word64, Word64)]
-voff i =
-    map f i
-    where
-        f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
-
-main :: IO ()
-main = do
-    path <- getArgs
-    index <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
-
-    h <- openFile (path!!0) ReadMode  
-    bs <- runGet blocks <$> L.hGetContents h
-
-    let y = runGet getBamfile $ L.concat  ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
-        mapM_ putStrLn (map show (alignments y))
+}
