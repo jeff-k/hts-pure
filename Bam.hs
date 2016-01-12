@@ -1,4 +1,4 @@
-module Bam (getBamFile) where
+module Bam (getBamfile,alignments,cdata,blocks) where
 import System.IO
 import System.Directory
 
