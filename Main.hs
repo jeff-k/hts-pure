@@ -25,7 +25,6 @@ main = do
     index <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
 
     h <- openFile (path!!0) ReadMode  
-    bs <- runGet blocks <$> L.hGetContents h
+    bamf <- bamfile h
 
-    let y = runGet getBamfile $ L.concat  ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
-        mapM_ putStrLn (map show (alignments y))
+    print $ header bamf

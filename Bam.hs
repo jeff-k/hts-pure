@@ -1,10 +1,12 @@
-module Bam (getBamfile,alignments,cdata,blocks) where
+module Bam (bamfile) where
 import System.IO
 import System.Directory
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Bchar
+
+import Data.Conduit
 
 import System.Environment (getArgs)
 import Codec.Compression.Zlib.Raw
@@ -142,3 +144,8 @@ dParam block =
     where
         d = defaultDecompressParams
 
+bamfile :: Handle -> IO Bamfile
+bamfile h = do
+    bs <- runGet blocks <$> L.hGetContents h
+    b <- runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
+    return b
