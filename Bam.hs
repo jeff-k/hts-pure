@@ -14,6 +14,7 @@ import Data.Int
 import Data.Bits
 
 import qualified Data.Map as M
+
 import Control.Applicative
 import Control.Monad
 
@@ -23,8 +24,6 @@ data Bin = Bin {m::Int, b_chunks::[Chunk]}
 
 data Index = Index {contigs::[ContigIndex], n_no_coor::Int}
 data Header = Header {text::String, refs::[Contig]}
-
-data Rtree = Rleaf Int | Rtree [Rtree]
 
 data Cigar = Cigar {op_len::Int, op::Char}
 
@@ -103,10 +102,10 @@ readb s =
 
 readcig :: Word32 -> Cigar 
 readcig s =
-    let op_len = fromIntegral $ s `shiftR` 4 in
-        let op = fromIntegral $ 7 .&. s in
-            let t = "MIDNSHP=X" in
-                Cigar op_len (t!!op)
+    let op_len = fromIntegral $ s `shiftR` 4
+        op = fromIntegral $ 7 .&. s
+        t = "MIDNSHP=X" in
+    Cigar op_len (t!!op)
 
 getAlignments :: Get [Alignment]
 getAlignments = do
@@ -247,9 +246,9 @@ splito x = (m x, (v `shiftR` 16), (v .&. 65535))
 voff :: Index -> [(Int, Word64, Word64)]
 voff i bin =
     (x, ((beg v) `shiftR` 16), ((beg v) .&. 65535))
-    map f chunks
+    map f (b_chunks bin)
     where
-        f = (x, v `shiftR` 16), (v .&. 65535))
+        f = ((x, v `shiftR` 16), (v .&. 65535))
         bs = (bins ((contigs i)!!0))
         v = beg $ b_chunks x
         x = m $ (bins ((contigs i)!!0))!!bin
@@ -269,8 +268,9 @@ main = do
     h <- openFile (path!!0) ReadMode  
 --    hSeek h AbsoluteSeek (fromIntegral vo)
     bs <- runGet blocks <$> L.hGetContents h
-
-    hSeek h AbsoluteSeek (beg $ (b_chunks (bins ((contigs index)!!0)!!0)!!0))
-    let x = (map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x))) bs)!!0 in
--       print $ runGet getAlignments $ L.drop (fromIntegral bo) x
+    print bs
+--    i <- Interval (pos read) (alignmentEnd $ pos read)
+--    hSeek h AbsoluteSeek (beg $ (b_chunks (bins ((contigs index)!!0)!!0)!!0))
+--    let x = (map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x))) bs)!!0 in
+--        print $ runGet getAlignments $ L.drop (fromIntegral bo) x
         
