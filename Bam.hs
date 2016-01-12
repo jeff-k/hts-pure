@@ -237,21 +237,12 @@ ctail i =
         _:tail -> (L.fromStrict (B.concat tail))
         _ -> L.empty 
 
-splito :: Bin -> (Int, Word64, Word64)
-splito x = (m x, (v `shiftR` 16), (v .&. 65535))
+voff :: [Chunk] -> [(Int, Word64, Word64)]
+voff i =
+--    (x, ((beg v) `shiftR` 16), ((beg v) .&. 65535))
+    map f i
     where
-        v = beg $ b_chunks x
-        
-
-voff :: Index -> [(Int, Word64, Word64)]
-voff i bin =
-    (x, ((beg v) `shiftR` 16), ((beg v) .&. 65535))
-    map f (b_chunks bin)
-    where
-        f = ((x, v `shiftR` 16), (v .&. 65535))
-        bs = (bins ((contigs i)!!0))
-        v = beg $ b_chunks x
-        x = m $ (bins ((contigs i)!!0))!!bin
+        f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
 
 buildIndex :: String -> IO Index
 buildIndex bai = 
