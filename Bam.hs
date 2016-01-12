@@ -1,4 +1,4 @@
-module Bam (getBamFile) where {
+module Bam (getBamFile) where
 import System.IO
 import System.Directory
 
@@ -142,17 +142,3 @@ dParam block =
     where
         d = defaultDecompressParams
 
-getBlocks :: L.ByteString -> [B.ByteString] 
-getBlocks i = go decoder i
-    where
-        decoder = runGetIncremental getBgzf
-        go :: Decoder Bgzf -> L.ByteString -> [B.ByteString]
-        go (Done r _c block) input =
-            (L.toStrict $ decompressWith (dParam block) (L.fromStrict . cdata $ block)) : go decoder (L.fromStrict r)
-        go (Partial k) input =
-            go (k . chead $ input) (ctail input)
-        go (Fail rem _c msg) _input =
-            error msg
-
-
-}
