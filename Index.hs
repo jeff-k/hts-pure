@@ -1,4 +1,4 @@
-module Index where {
+module Index (getIndex) where {
 
 import System.IO
 

@@ -1,4 +1,4 @@
-module Bam where {
+module Bam (getBamFile) where {
 import System.IO
 import System.Directory
 
@@ -56,10 +56,10 @@ blocks = do
 
 readb :: Word8 -> String
 readb s =
-    let l = (fromIntegral $ 15 .&. s) in
-        let b = fromIntegral $ s `shiftR` 4 in
-            let t = "=ACMGRSVTWYHKDBN" in
-                [t!!b, t!!l]
+    let l = (fromIntegral $ 15 .&. s)
+        b = fromIntegral $ s `shiftR` 4
+        t = "=ACMGRSVTWYHKDBN" in
+            [t!!b, t!!l]
 
 readcig :: Word32 -> Cigar 
 readcig s =
