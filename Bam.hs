@@ -7,6 +7,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Bchar
 
 import Data.Conduit
+import qualified Data.Conduit.Binary as CB
 
 import System.Environment (getArgs)
 import Codec.Compression.Zlib.Raw
@@ -146,5 +147,9 @@ dParam block =
 
 bamfile :: Handle -> IO Bamfile
 bamfile h = do
+    s = CB.sourceHandle h
+    
     bs <- runGet blocks <$> L.hGetContents h
     return $ runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
+
+
