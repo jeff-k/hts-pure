@@ -239,29 +239,17 @@ ctail i =
 
 voff :: [Chunk] -> [(Int, Word64, Word64)]
 voff i =
---    (x, ((beg v) `shiftR` 16), ((beg v) .&. 65535))
     map f i
     where
         f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
 
-buildIndex :: String -> IO Index
-buildIndex bai = 
-    --e <- doesFileExist bai
-    --when e
-    runGet getIndex <$> L.readFile bai
-
 main :: IO ()
 main = do
     path <- getArgs
---    index <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
-    index <- buildIndex (path!!0 ++ ".bai")
+    index <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
 
     h <- openFile (path!!0) ReadMode  
---    hSeek h AbsoluteSeek (fromIntegral vo)
     bs <- runGet blocks <$> L.hGetContents h
-    print bs
---    i <- Interval (pos read) (alignmentEnd $ pos read)
---    hSeek h AbsoluteSeek (beg $ (b_chunks (bins ((contigs index)!!0)!!0)!!0))
---    let x = (map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x))) bs)!!0 in
---        print $ runGet getAlignments $ L.drop (fromIntegral bo) x
-        
+
+    let y = runGet getBamfile $ L.concat  ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs) in
+        mapM_ putStrLn (map show (alignments y))
