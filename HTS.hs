@@ -17,3 +17,6 @@ parseCoord :: String -> Coord
 parseCoord s = Coord s Nothing
 
 data ITree = Leaf (Integer, Integer) | Node ITree ITree
+
+instance Show ITree where
+    show t = "<interval tree>"

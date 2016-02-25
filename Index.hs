@@ -14,6 +14,7 @@ import Data.Bits
 import Control.Applicative
 import Control.Monad
 
+import qualified Data.Map as M
 import HTS
 
 data Chunk = Chunk {beg::Word64, end::Word64}
@@ -90,5 +91,5 @@ voff i =
     where
         f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
 
-intervals :: Index -> ITree
+intervals :: Index -> M.Map String ITree
 intervals = undefined
