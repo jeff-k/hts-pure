@@ -25,21 +25,15 @@ instance Show Chunk where
     show c = (show (beg c)) ++ "-" ++ (show (end c))
 
 instance Show Index where
-    show i = "Contigs:\t" ++ show (length (contigs i)) ++ "\n\t" ++ show (contigs i) ++ "\n\t"
+    show i = "Contigs:\t" ++ show (length (contigs i)) ++ "\n\t"
+                          ++ show (contigs i) ++ "\n\t"
 
 instance Show Bin where
-    show b = show (m b) ++ (foldr (++) "" (map (\x -> "\t" ++ (show x) ++ "\n") (b_chunks b)))
+    show b = show (m b) ++ (concat (map (\x -> "\t" ++ (show x) ++ "\n")
+                                   (b_chunks b)))
 
 instance Show ContigIndex where
     show c = show (bins c)
-
-log_shift :: Int -> Word64 -> Word64 -> Bool
-log_shift l b e =
-    (b `shiftR` l) == (e `shiftR` l)
-
-calc_bin :: Int -> Int -> Word64 -> Word64
-calc_bin l c b =
-    (((1 `shiftL` c) - 1) `div` 7) + (b `shiftR` l)
 
 reg2bin :: Word64 -> Word64 -> Word64
 reg2bin b e
@@ -48,7 +42,9 @@ reg2bin b e
     | log_shift 20 b e = calc_bin 20 9 b
     | log_shift 23 b e = calc_bin 23 6 b
     | log_shift 26 b e = calc_bin 26 3 b
-    | True = 0
+    | otherwise = 0
+    where calc_bin l c b = (((1 `shiftL` c) - 1) `div` 7) + (b `shiftR` l)
+          log_shift l b e = (b `shiftR` l) == (e `shiftR` l)
 
 bin2reg :: Word64 -> Word64 -> Word64
 bin2reg b e =
