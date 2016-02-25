@@ -15,16 +15,19 @@ import System.Environment (getArgs)
 import Control.Applicative
 import Control.Monad
 
+import Coord
 import Index
 import Bam
 
-main :: IO ()
-main = do
+--dump :: IO (path, Maybe Coord)
+--dump path c =
+--    case c of
+--        Just c -> 
 
-    path <- getArgs
-    index <- runGet getIndex <$> L.readFile (path!!0 ++ ".bai")
-
-    h <- openFile (path!!0) ReadMode  
-    bamf <- bamfile h
-
-    print $ header bamf
+main = do 
+    [path, coords] <- getArgs
+    index <- runGet getIndex <$> L.readFile (path ++ ".bai")
+--    h <- openFile path ReadMode  
+--    bamf <- bamfile h
+    print $ intervals index
+--    print $ header bamf

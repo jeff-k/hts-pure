@@ -1,4 +1,4 @@
-module Index (getIndex) where
+module Index (getIndex, intervals) where
 
 import System.IO
 
@@ -13,6 +13,8 @@ import Data.Bits
 
 import Control.Applicative
 import Control.Monad
+
+import HTS
 
 data Chunk = Chunk {beg::Word64, end::Word64}
 data Bin = Bin {m::Int, b_chunks::[Chunk]}
@@ -87,3 +89,6 @@ voff i =
     map f i
     where
         f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
+
+intervals :: Index -> ITree
+intervals = undefined
