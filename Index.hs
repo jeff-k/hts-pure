@@ -83,13 +83,14 @@ getIndex = do
         else do n_no_coor <- fmap fromIntegral getWord32le
                 return $ Index cs n_no_coor
 
-voff :: [Chunk] -> [(Int, Word64, Word64)]
+voff :: [Chunk] -> [(Word64, Word64)]
 voff i =
     map f i
     where
-        f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
+        f v = ((beg v) `shiftR` 16, (beg v) .&. 65535)
 
 getOffset :: Index -> Coord -> (Word64, Word64)
 getOffset i c =
-    case (interval c) of Just (beg,end) -> (0, 0)
-                         Nothing -> (0, 0)
+    case (interval c) of
+        Just (beg, _) ->  voff b_chunks $ bins!!(fromIntegral $ reg2bin beg)
+        Nothing -> (0, 0)
