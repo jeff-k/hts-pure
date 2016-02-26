@@ -9,23 +9,24 @@ import System.Environment (getArgs)
 
 import Control.Applicative
 
-import qualified Data.Map as M
-import HTS
 import Index
 import Bam
+import HTS
 
 main = do 
     args <- getArgs
     case args of
         [path] -> parseHeader path
-        [path, ref] -> dumpRef path ref
+        [path, ref] -> dumpRef path $ Coord ref Nothing
+        [path, ref, pos] -> dumpRef path $ Coord ref (Just (read pos, read pos))
 
 parseHeader path = do
     h <- openFile path ReadMode  
     bamf <- bamfile h
---    print $ M.lookup coords (intervals index)
     print $ header bamf
 
-dumpRef path ref = do
+dumpRef path coord = do
     index <- runGet getIndex <$> L.readFile (path ++ ".bai")
-    putStrLn "asdf"
+    h <- openFile path ReadMode
+    stream <- bamSeek h index coord
+    print $ stream

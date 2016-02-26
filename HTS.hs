@@ -1,4 +1,4 @@
-module HTS (Coord, parseCoord, ITree) where
+module HTS (Coord(Coord), parseCoord, interval) where
 
 import Data.Map as M
 
@@ -16,7 +16,3 @@ instance Show Coord where
 parseCoord :: String -> Coord
 parseCoord s = Coord s Nothing
 
-data ITree = Leaf (Integer, Integer) | Node ITree ITree
-
-instance Show ITree where
-    show t = "<interval tree>"

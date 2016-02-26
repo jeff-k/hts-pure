@@ -1,4 +1,4 @@
-module Index (getIndex, intervals) where
+module Index (getIndex,getOffset,Index) where
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
@@ -89,5 +89,7 @@ voff i =
     where
         f v = (0, (beg v) `shiftR` 16, (beg v) .&. 65535)
 
-intervals :: Index -> M.Map String ITree
-intervals = undefined
+getOffset :: Index -> Coord -> (Word64, Word64)
+getOffset i c =
+    case (interval c) of Just (beg,end) -> (0, 0)
+                         Nothing -> (0, 0)

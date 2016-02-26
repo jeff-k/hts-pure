@@ -1,4 +1,4 @@
-module Bam (bamfile,header) where
+module Bam (bamfile,header,bamSeek) where
 
 import System.IO
 
@@ -15,6 +15,8 @@ import Data.Bits
 
 import qualified Data.Map as M
 
+import Index
+import HTS
 import Control.Applicative
 import Control.Monad
 
@@ -50,8 +52,6 @@ blocks = do
         else do
             block <- getBgzf 
             return (block:[])
---            rest <- blocks
---            return (block:rest)
 
 readb :: Word8 -> String
 readb s =
@@ -146,3 +146,9 @@ bamfile h = do
     bs <- runGet blocks <$> L.hGetContents h
     return $ runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
 
+bamSeek :: Handle -> Index -> Coord -> IO Bamfile
+bamSeek h i coord = do
+    hSeek h AbsoluteSeek (fromIntegral vo)
+    bs <- runGet blocks <$> L.hGetContents h
+    return $ runGet getBamfile $ L.drop (fromIntegral bo) $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs )
+    where (bo, vo) = getOffset i coord
