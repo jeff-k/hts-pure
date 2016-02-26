@@ -28,16 +28,19 @@ data Cigar = Cigar {op_len::Int, op::Char}
 
 data Alignment = Alignment {pos::Int, refID::Int, r::Int, read_name::String, seq_a::String, cigar::[Cigar]}
 
-data Contig = Contig {name::String} deriving Show
+data Contig = Contig {name::String}
 
 instance Show Alignment where
     show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++ (show . refID $ a) ++ "\t" ++ (show . r $ a) ++ "\t" ++ (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
+
+instance Show Contig where
+    show c = name c
 
 instance Show Cigar where
     show s = (show . op_len $ s) ++ [(op s)]
 
 instance Show Header where
-    show s = text s ++ show (length (refs s)) ++ "\n\t" ++ show (refs s) 
+    show s = text s ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
 
 data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
 

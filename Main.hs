@@ -29,4 +29,4 @@ dumpRef path coord = do
     index <- runGet getIndex <$> L.readFile (path ++ ".bai")
     h <- openFile path ReadMode
     stream <- bamSeek h index coord
-    print $ stream
+    print stream
