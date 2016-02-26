@@ -1,7 +1,5 @@
 module Index (getIndex, intervals) where
 
-import System.IO
-
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Bchar

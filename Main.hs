@@ -15,9 +15,17 @@ import Index
 import Bam
 
 main = do 
-    [path, coords] <- getArgs
+    args <- getArgs
+    case args of
+        [path] -> parseHeader path
+        [path, ref] -> dumpRef path ref
+
+parseHeader path = do
+    h <- openFile path ReadMode  
+    bamf <- bamfile h
+--    print $ M.lookup coords (intervals index)
+    print $ header bamf
+
+dumpRef path ref = do
     index <- runGet getIndex <$> L.readFile (path ++ ".bai")
---    h <- openFile path ReadMode  
---    bamf <- bamfile h
-    print $ M.lookup coords (intervals index)
---    print $ header bamf
+    putStrLn "asdf"

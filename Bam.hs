@@ -1,12 +1,11 @@
 module Bam (bamfile,header) where
+
 import System.IO
-import System.Directory
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Bchar
 
-import System.Environment (getArgs)
 import Codec.Compression.Zlib.Raw
 
 import Data.Binary.Get
@@ -146,5 +145,4 @@ bamfile :: Handle -> IO Bamfile
 bamfile h = do
     bs <- runGet blocks <$> L.hGetContents h
     return $ runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
-
 

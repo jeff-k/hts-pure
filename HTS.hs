@@ -6,10 +6,10 @@ data Coord = Coord {ref::String, interval::Maybe (Integer, Integer)}
 
 instance Show Coord where
     show c = case (interval c) of
-        Just (beg,end) -> writeRange (beg,end)
+        Just (beg,end) -> rangeStr (beg,end)
         Nothing -> ref c
         where
-            writeRange (b, e)
+            rangeStr (b, e)
                 | b == e = ref c ++ ":" ++ (show b)
                 | otherwise = ref c ++ ":" ++ (show b) ++ "-" ++ (show e) 
 
