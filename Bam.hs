@@ -20,13 +20,24 @@ import HTS
 import Control.Applicative
 import Control.Monad
 
-data Bgzf = Bgzf {id1::Int, cdata::B.ByteString, isize::Int} deriving Show
+data Bgzf = Bgzf {
+    id1     :: Int,
+    cdata   :: B.ByteString,
+    isize   :: Int
+} deriving Show
 
 data Header = Header {text::String, refs::[Contig]}
 
 data Cigar = Cigar {op_len::Int, op::Char}
 
-data Alignment = Alignment {pos::Int, refID::Int, r::Int, read_name::String, seq_a::String, cigar::[Cigar]}
+data Alignment = Alignment {
+    pos         :: Int,
+    refID       :: Int,
+    r           :: Int,
+    read_name   :: String,
+    seq_a       :: String,
+    cigar       :: [Cigar]
+}
 
 data Contig = Contig {name::String}
 
@@ -42,7 +53,7 @@ instance Show Cigar where
 instance Show Header where
     show s = text s ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
 
-data Bamfile = Bamfile {header::Header, alignments::Get [Alignment]}
+data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
 
 instance Show Bamfile where
     show b =  show (header b)
@@ -54,7 +65,7 @@ blocks = do
         then return []
         else do
             block <- getBgzf 
-            return (block:[])
+            return (block)
 
 readb :: Word8 -> String
 readb s =
@@ -70,31 +81,26 @@ readcig s =
         t = "MIDNSHP=X" in
     Cigar op_len (t!!op)
 
-getAlignments :: Get [Alignment]
-getAlignments = do
-    empty <- isEmpty
-    if empty
-        then return []
-        else do
-            l <- fromIntegral <$> getWord32le
-            refID <- fromIntegral <$> getWord32le
-            pos <- fromIntegral <$> getWord32le
-            l_read_name <- fromIntegral <$> getWord8
-            mapq <- fromIntegral <$> getWord8 
-            bin <- getWord16le
-            n_cigar_op <- fromIntegral <$> getWord16le
-            flag <- getWord16le
-            l_seq <- fromIntegral <$> getWord32le
-            next_refID <- getWord32le
-            next_pos <- getWord32le
-            tlen <- fromIntegral <$> getWord32le
-            read_name <- getByteString l_read_name
-            cigar_ops <- replicateM n_cigar_op getWord32le
-            seq <- getByteString (div (l_seq + 1) 2)
-            qual <- getByteString l_seq 
-            tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2))
---            rest <- getAlignments
-            return ((Alignment refID pos mapq (Bchar.unpack read_name) (concat (map readb (B.unpack seq))) (map readcig cigar_ops)):[])
+getAlignment :: Get Alignment
+getAlignment = do
+    l <- fromIntegral <$> getWord32le
+    refID <- fromIntegral <$> getWord32le
+    pos <- fromIntegral <$> getWord32le
+    l_read_name <- fromIntegral <$> getWord8
+    mapq <- fromIntegral <$> getWord8 
+    bin <- getWord16le
+    n_cigar_op <- fromIntegral <$> getWord16le
+    flag <- getWord16le
+    l_seq <- fromIntegral <$> getWord32le
+    next_refID <- getWord32le
+    next_pos <- getWord32le
+    tlen <- fromIntegral <$> getWord32le
+    read_name <- getByteString l_read_name
+    cigar_ops <- replicateM n_cigar_op getWord32le
+    seq <- getByteString (div (l_seq + 1) 2)
+    qual <- getByteString l_seq 
+    tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2))
+    return $ Alignment refID pos mapq (Bchar.unpack read_name) (concat (map readb (B.unpack seq))) (map readcig cigar_ops)
 
 ref :: Get Contig
 ref = do
@@ -148,6 +154,14 @@ bamfile :: Handle -> IO Bamfile
 bamfile h = do
     bs <- runGet blocks <$> L.hGetContents h
     return $ runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
+
+sbam :: Handle -> IO [Alignments]
+sbam h = do
+    bs <- h.getContents
+    runGetIncremental zParser `pushChunks` bs
+    chunk <- runGet Bgzf
+    pushChunk
+    return $ runGet alignments bs
 
 bamSeek :: Handle -> Index -> Coord -> IO Bamfile
 bamSeek h i coord = do
