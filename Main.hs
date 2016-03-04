@@ -17,8 +17,7 @@ main = do
     args <- getArgs
     case args of
         [path] -> parseHeader path
-        [path, ref] -> dumpRef path $ Coord ref Nothing
-        [path, ref, pos] -> dumpRef path $ Coord ref (Just (read pos, read pos))
+        [path, coord] -> dumpRef path $ parseCoord coord
 
 parseHeader path = do
     h <- openFile path ReadMode  
@@ -27,6 +26,7 @@ parseHeader path = do
 
 dumpRef path coord = do
     index <- runGet getIndex <$> L.readFile (path ++ ".bai")
+    print $ getOffset index coord
     h <- openFile path ReadMode
     stream <- bamSeek h index coord
     print stream

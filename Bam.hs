@@ -42,10 +42,10 @@ instance Show Cigar where
 instance Show Header where
     show s = text s ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
 
-data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
+data Bamfile = Bamfile {header::Header, alignments::Get [Alignment]}
 
 instance Show Bamfile where
-    show b =  show (header b) ++ "\nt" ++ show (alignments b)
+    show b =  show (header b)
 
 blocks :: Get [Bgzf]
 blocks = do
@@ -115,8 +115,8 @@ getHeader = do
 getBamfile :: Get Bamfile
 getBamfile = do
     h <- getHeader
-    as <- getAlignments
-    return $ Bamfile h as
+--    as <- getAlignments
+    return $ Bamfile h getAlignments
 
 getBgzf :: Get Bgzf
 getBgzf = do
@@ -154,4 +154,4 @@ bamSeek h i coord = do
     hSeek h AbsoluteSeek (fromIntegral vo)
     bs <- runGet blocks <$> L.hGetContents h
     return $ runGet getBamfile $ L.drop (fromIntegral bo) $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs )
-    where (bo, vo) = getOffset i coord
+    where (bo, vo) = (getOffset i coord)!!0
