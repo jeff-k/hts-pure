@@ -1,4 +1,2 @@
 # hts-pure
-A haskell implementation of high-throughput sequencing data tools
-
-(in development)
+Tools for manipulating next generation sequencing data
