@@ -65,7 +65,7 @@ blocks = do
         then return []
         else do
             block <- getBgzf 
-            return (block)
+            return [(block)]
 
 readb :: Word8 -> String
 readb s =
@@ -100,7 +100,12 @@ getAlignment = do
     seq <- getByteString (div (l_seq + 1) 2)
     qual <- getByteString l_seq 
     tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2))
-    return $ Alignment refID pos mapq (Bchar.unpack read_name) (concat (map readb (B.unpack seq))) (map readcig cigar_ops)
+    return $ Alignment refID
+                       pos
+                       mapq
+                       (Bchar.unpack read_name)
+                       (concat (map readb (B.unpack seq)))
+                       (map readcig cigar_ops)
 
 ref :: Get Contig
 ref = do
@@ -117,12 +122,6 @@ getHeader = do
     n_ref <- fromIntegral <$> getWord32le
     refs <- replicateM n_ref ref
     return $ Header (Bchar.unpack t) refs
-
-getBamfile :: Get Bamfile
-getBamfile = do
-    h <- getHeader
---    as <- getAlignments
-    return $ Bamfile h getAlignments
 
 getBgzf :: Get Bgzf
 getBgzf = do
@@ -153,15 +152,11 @@ dParam block =
 bamfile :: Handle -> IO Bamfile
 bamfile h = do
     bs <- runGet blocks <$> L.hGetContents h
-    return $ runGet getBamfile $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs)
-
-sbam :: Handle -> IO [Alignments]
-sbam h = do
-    bs <- h.getContents
-    runGetIncremental zParser `pushChunks` bs
-    chunk <- runGet Bgzf
-    pushChunk
-    return $ runGet alignments bs
+    h <- getHeader $ decompressWith defaultDecompressParams
+                                    (L.fromString 
+    return $ runGet getAlignment $ 
+             L.concat ((map (\x -> (decompressWith defaultDecompressParams 
+                                                   (L.fromStrict . cdata $ x)))) bs)
 
 bamSeek :: Handle -> Index -> Coord -> IO Bamfile
 bamSeek h i coord = do
