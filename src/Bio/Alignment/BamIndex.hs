@@ -13,7 +13,7 @@ import Control.Applicative
 import Control.Monad
 
 import qualified Data.Map as M
-import HTS
+import Bio.Data.Location
 
 data Chunk = Chunk {beg::Word64, end::Word64}
 data Bin = Bin {m::Int, b_chunks::[Chunk]}
@@ -87,7 +87,7 @@ voffs :: [Chunk] -> [(Word64, Word64)]
 voffs i = map f i where
     f v = ((beg v) `shiftR` 16, (beg v) .&. 65535)
 
-getOffset :: Index -> Coord -> [(Word64, Word64)]
+getOffset :: Index -> Pos -> [(Word64, Word64)]
 getOffset i c =
     case (interval c) of
         Just (beg, end) ->  voffs (b_chunks (b!!bin_index)) where

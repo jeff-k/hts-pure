@@ -13,14 +13,15 @@ import Data.Word
 import Data.Int
 import Data.Bits
 
-import Pipe
-
 import System.IO (isEOF)
 
 import qualified Data.Map as M
 
-import Index
-import HTS
+import Bio.Alignment.BamIndex
+
+import Bio.Data.Cigar
+import Bio.Data.Location
+
 import Control.Applicative
 import Control.Monad
 
@@ -31,8 +32,6 @@ data Bgzf = Bgzf {
 } deriving Show
 
 data Header = Header {text::String, refs::[Contig]}
-
-data Cigar = Cigar {op_len::Int, op::Char}
 
 data Alignment = Alignment {
     pos         :: Int,
@@ -52,9 +51,6 @@ instance Show Alignment where
 
 instance Show Contig where
     show c = name c
-
-instance Show Cigar where
-    show s = (show . op_len $ s) ++ [(op s)]
 
 instance Show Header where
     show s = text s ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
@@ -79,13 +75,6 @@ readb s =
         b = fromIntegral $ s `shiftR` 4
         t = "=ACMGRSVTWYHKDBN" in
             [t!!b, t!!l]
-
-readcig :: Word32 -> Cigar 
-readcig s =
-    let op_len = fromIntegral $ s `shiftR` 4
-        op = fromIntegral $ 7 .&. s
-        t = "MIDNSHP=X" in
-    Cigar op_len (t!!op)
 
 getAlignment :: Get Alignment
 getAlignment = do
@@ -165,7 +154,7 @@ bamfile h = do
                                                   (L.fromStrict . cdata $ x)))
                            bs)
 
-bamSeek :: Handle -> Index -> Coord -> IO Bamfile
+bamSeek :: Handle -> Index -> Pos -> IO Bamfile
 bamSeek h i coord = do
     hSeek h AbsoluteSeek (fromIntegral vo)
     bs <- runGet blocks <$> L.hGetContents h
@@ -175,7 +164,3 @@ bamSeek h i coord = do
                                                   (L.fromStrict . cdata $ x))) 
                        bs)
     where (bo, vo) = (getOffset i coord)!!0
-
-bams :: Producer Alignment IO ()
-bams = do
-  eof <- lift isEOF

@@ -1,10 +1,10 @@
-module HTS (Coord(Coord), parseCoord, interval) where
+module Location (Pos, parsePos, coverage) where
 
 import Data.Map as M
 
-data Coord = Coord {ref::String, interval::Maybe (Int, Int)}
+data Pos = Pos {ref::String, interval::Maybe (Int, Int)}
 
-instance Show Coord where
+instance Show Pos where
     show c = case (interval c) of
         Just (beg,end) -> rangeStr (beg,end)
         Nothing -> ref c
@@ -13,6 +13,10 @@ instance Show Coord where
                 | b == e = ref c ++ ":" ++ (show b)
                 | otherwise = ref c ++ ":" ++ (show b) ++ "-" ++ (show e) 
 
-parseCoord :: String -> Coord
-parseCoord s = Coord s (Just (10,10000000))
+coverage :: [Pos] -> [Pos]
+coverage = undefined
+
+parsePos :: String -> Pos
+parsePos = undefined
+--parsePos s = Pos s (Nothing)
 
