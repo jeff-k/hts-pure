@@ -1,4 +1,4 @@
-module Cigar (Cigar, readcig) where
+module Bio.Data.Cigar (Cigar, readcig) where
 
 data Cigar = Cigar {op_len::Int, op::Char}
 

@@ -1,4 +1,4 @@
-module BamIndex (getIndex,getOffset,Index) where
+module Bio.Alignment.BamIndex (getIndex,getOffset,Index) where
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B

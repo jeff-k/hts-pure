@@ -1,4 +1,4 @@
-module Bam (bamfile,header,bamSeek) where
+module Bio.Alignment.Bam (bamfile,header,bamSeek) where
 
 import System.IO
 
