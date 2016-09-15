@@ -138,11 +138,11 @@ getBgzf = do
     isize <- fromIntegral <$> getWord32le
     return $ Bgzf id1 cdata isize
 
-dParam :: Bgzf -> DecompressParams
-dParam block =
-    DecompressParams (decompressWindowBits d) (isize block) Nothing
-    where
-        d = defaultDecompressParams
+--dParam :: Bgzf -> DecompressParams
+--dParam block =
+--    DecompressParams (decompressWindowBits d) (isize block) Nothing
+--    where
+--        d = defaultDecompressParams
 
 bamfile :: Handle -> IO Bamfile
 bamfile h = do
@@ -154,13 +154,13 @@ bamfile h = do
                                                   (L.fromStrict . cdata $ x)))
                            bs)
 
-bamSeek :: Handle -> Index -> Pos -> IO Bamfile
-bamSeek h i coord = do
-    hSeek h AbsoluteSeek (fromIntegral vo)
-    bs <- runGet blocks <$> L.hGetContents h
-    return $ runGet getBamfile $
-             L.drop (fromIntegral bo) $
-             L.concat (map (\x -> (decompressWith defaultDecompressParams 
-                                                  (L.fromStrict . cdata $ x))) 
-                       bs)
-    where (bo, vo) = (getOffset i coord)!!0
+--bamSeek :: Handle -> Index -> Pos -> IO Bamfile
+--bamSeek h i coord = do
+--    hSeek h AbsoluteSeek (fromIntegral vo)
+--    bs <- runGet blocks <$> L.hGetContents h
+--    return $ runGet getBamfile $
+--             L.drop (fromIntegral bo) $
+--             L.concat (map (\x -> (decompressWith defaultDecompressParams 
+--                                                  (L.fromStrict . cdata $ x))) 
+--                       bs)
+--    where (bo, vo) = (getOffset i coord)!!0

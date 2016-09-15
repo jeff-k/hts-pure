@@ -95,4 +95,4 @@ getOffset i c =
             b = bins ((contigs i)!!ref)
             offsets = ioffsets ((contigs i)!!ref)
             ref = 0 -- get ref
-        Nothing -> [(0, 0)]
+        Nothing -> []

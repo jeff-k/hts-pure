@@ -1,4 +1,4 @@
-module Bio.Data.Location (Pos, parsePos, coverage) where
+module Bio.Data.Location (Pos, parsePos, coverage, interval) where
 
 import Data.Map as M
 
