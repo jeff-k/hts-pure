@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (bamfile,header,bamSeek) where
+module Bio.Alignment.Bam (bamfile,header) where
 
 import System.IO
 
@@ -144,7 +144,7 @@ getBgzf = do
 --    where
 --        d = defaultDecompressParams
 
-bamfile :: Handle -> IO Bamfile
+bamfile :: Handle -> IO Alignment
 bamfile h = do
     bs <- runGet blocks <$> L.hGetContents h
 --    h <- getHeader $ decompressWith defaultDecompressParams
