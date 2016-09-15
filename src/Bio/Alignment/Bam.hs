@@ -13,6 +13,10 @@ import Data.Word
 import Data.Int
 import Data.Bits
 
+import Pipe
+
+import System.IO (isEOF)
+
 import qualified Data.Map as M
 
 import Index
@@ -42,7 +46,9 @@ data Alignment = Alignment {
 data Contig = Contig {name::String}
 
 instance Show Alignment where
-    show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++ (show . refID $ a) ++ "\t" ++ (show . r $ a) ++ "\t" ++ (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
+    show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++
+             (show . refID $ a) ++ "\t" ++ (show . r $ a) ++ "\t" ++
+             (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
 
 instance Show Contig where
     show c = name c
@@ -152,15 +158,24 @@ dParam block =
 bamfile :: Handle -> IO Bamfile
 bamfile h = do
     bs <- runGet blocks <$> L.hGetContents h
-    h <- getHeader $ decompressWith defaultDecompressParams
-                                    (L.fromString 
+--    h <- getHeader $ decompressWith defaultDecompressParams
+--                                    (L.fromString 
     return $ runGet getAlignment $ 
-             L.concat ((map (\x -> (decompressWith defaultDecompressParams 
-                                                   (L.fromStrict . cdata $ x)))) bs)
+             L.concat (map (\x -> (decompressWith defaultDecompressParams 
+                                                  (L.fromStrict . cdata $ x)))
+                           bs)
 
 bamSeek :: Handle -> Index -> Coord -> IO Bamfile
 bamSeek h i coord = do
     hSeek h AbsoluteSeek (fromIntegral vo)
     bs <- runGet blocks <$> L.hGetContents h
-    return $ runGet getBamfile $ L.drop (fromIntegral bo) $ L.concat ((map (\x -> (decompressWith defaultDecompressParams (L.fromStrict . cdata $ x)))) bs )
+    return $ runGet getBamfile $
+             L.drop (fromIntegral bo) $
+             L.concat (map (\x -> (decompressWith defaultDecompressParams 
+                                                  (L.fromStrict . cdata $ x))) 
+                       bs)
     where (bo, vo) = (getOffset i coord)!!0
+
+bams :: Producer Alignment IO ()
+bams = do
+  eof <- lift isEOF

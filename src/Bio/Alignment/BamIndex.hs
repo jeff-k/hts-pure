@@ -1,4 +1,4 @@
-module Index (getIndex,getOffset,Index) where
+module BamIndex (getIndex,getOffset,Index) where
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
