@@ -18,5 +18,3 @@ coverage = undefined
 
 parsePos :: String -> Pos
 parsePos = undefined
---parsePos s = Pos s (Nothing)
-

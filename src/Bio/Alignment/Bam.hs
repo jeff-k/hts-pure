@@ -15,8 +15,6 @@ import Data.Bits
 
 import System.IO (isEOF)
 
-import qualified Data.Map as M
-
 import Bio.Alignment.BamIndex
 
 import Bio.Data.Cigar
@@ -144,15 +142,22 @@ getBgzf = do
 --    where
 --        d = defaultDecompressParams
 
-bamfile :: Handle -> IO Alignment
+deZ :: Bgzf -> L.ByteString
+deZ block = decompressWith defaultDecompressParams
+                           (L.fromStrict . cdata $ block)
+
+bamfile :: Handle -> IO Header
 bamfile h = do
-    bs <- runGet blocks <$> L.hGetContents h
+  block <- runGet getBgzf <$> L.hGetContents h
+  return $ runGet getHeader (deZ block)
+--  return c
+--  bs <- runGet blocks <$> L.hGetContents h
 --    h <- getHeader $ decompressWith defaultDecompressParams
 --                                    (L.fromString 
-    return $ runGet getAlignment $ 
-             L.concat (map (\x -> (decompressWith defaultDecompressParams 
-                                                  (L.fromStrict . cdata $ x)))
-                           bs)
+--    return $ runGet getAlignment $ 
+--             L.concat (map (\x -> (decompressWith defaultDecompressParams 
+--                                                  (L.fromStrict . cdata $ x)))
+--                           bs)
 
 --bamSeek :: Handle -> Index -> Pos -> IO Bamfile
 --bamSeek h i coord = do

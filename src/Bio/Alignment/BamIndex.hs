@@ -12,7 +12,6 @@ import Data.Bits
 import Control.Applicative
 import Control.Monad
 
-import qualified Data.Map as M
 import Bio.Data.Location
 
 data Chunk = Chunk {beg::Word64, end::Word64}
