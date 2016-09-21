@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (getBamfile,header,alignments, getBlocks, Bgzf, deZ, getHeader) where
+module Bio.Alignment.Bam (getBamfile,header,alignments, getBlocks, Bgzf, deZ, getHeader, cdata, id1, isize) where
 
 import System.IO
 
@@ -139,23 +139,21 @@ getBgzf = do
     crc32 <- getWord32le
     isize <- fromIntegral <$> getWord32le
     
-    return $ Bgzf id1 B.empty isize bsize
+    return $ Bgzf id1 cdata isize bsize
 
 
 deZ :: Bgzf -> L.ByteString
-deZ block = case (isize block) of
-  0 -> L.empty
-  _ -> decompressWith params (L.fromStrict . cdata $ block)
-    where params = defaultDecompressParams
+deZ block = decompressWith params (L.fromStrict . cdata $ block)
+  where params = defaultDecompressParams
   --DecompressParams (isize block) 2**16 Nothing True
 
-getBlocks :: Get [Bgzf]
+getBlocks :: Get [L.ByteString]
 getBlocks = do
   empty <- isEmpty
   if empty
     then return []
     else do
-      b <- getBgzf
+      b <- deZ <$> getBgzf
       bs <- getBlocks
       return (b:bs)
 
