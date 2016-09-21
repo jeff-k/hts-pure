@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (bamfile,header) where
+module Bio.Alignment.Bam (getBamfile,header,alignments, getBlocks, Bgzf, deZ, getHeader) where
 
 import System.IO
 
@@ -26,8 +26,12 @@ import Control.Monad
 data Bgzf = Bgzf {
     id1     :: Int,
     cdata   :: B.ByteString,
-    isize   :: Int
-} deriving Show
+    isize   :: Int,
+    bsize   :: Int
+}
+
+instance Show Bgzf where
+  show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++ "\t" ++ (show . bsize $ bz) ++ "\n"
 
 data Header = Header {text::String, refs::[Contig]}
 
@@ -126,46 +130,47 @@ getBgzf = do
     xfl <- fromIntegral <$> getWord8
     os <- fromIntegral <$> getWord8
     xlen <- fromIntegral <$> getWord16le
-    si1 <- getWord8
+    si1 <- fromIntegral <$> getWord8
     si2 <- getWord8
-    slen <- getWord16le
+    slen <- fromIntegral <$> getWord16le
     bsize <- fromIntegral <$> getWord16le
-    flags <- getByteString (xlen - 6)
+    _ <- getByteString (xlen - 6)
     cdata <- getByteString (bsize - xlen - 19)
     crc32 <- getWord32le
     isize <- fromIntegral <$> getWord32le
-    return $ Bgzf id1 cdata isize
+    
+    return $ Bgzf id1 B.empty isize bsize
 
---dParam :: Bgzf -> DecompressParams
---dParam block =
---    DecompressParams (decompressWindowBits d) (isize block) Nothing
---    where
---        d = defaultDecompressParams
 
 deZ :: Bgzf -> L.ByteString
-deZ block = decompressWith defaultDecompressParams
-                           (L.fromStrict . cdata $ block)
+deZ block = case (isize block) of
+  0 -> L.empty
+  _ -> decompressWith params (L.fromStrict . cdata $ block)
+    where params = defaultDecompressParams
+  --DecompressParams (isize block) 2**16 Nothing True
 
-bamfile :: Handle -> IO Header
-bamfile h = do
-  block <- runGet getBgzf <$> L.hGetContents h
-  return $ runGet getHeader (deZ block)
---  return c
---  bs <- runGet blocks <$> L.hGetContents h
---    h <- getHeader $ decompressWith defaultDecompressParams
---                                    (L.fromString 
---    return $ runGet getAlignment $ 
---             L.concat (map (\x -> (decompressWith defaultDecompressParams 
---                                                  (L.fromStrict . cdata $ x)))
---                           bs)
+getBlocks :: Get [Bgzf]
+getBlocks = do
+  empty <- isEmpty
+  if empty
+    then return []
+    else do
+      b <- getBgzf
+      bs <- getBlocks
+      return (b:bs)
 
---bamSeek :: Handle -> Index -> Pos -> IO Bamfile
---bamSeek h i coord = do
---    hSeek h AbsoluteSeek (fromIntegral vo)
---    bs <- runGet blocks <$> L.hGetContents h
---    return $ runGet getBamfile $
---             L.drop (fromIntegral bo) $
---             L.concat (map (\x -> (decompressWith defaultDecompressParams 
---                                                  (L.fromStrict . cdata $ x))) 
---                       bs)
---    where (bo, vo) = (getOffset i coord)!!0
+getReads :: Get [Alignment]
+getReads = do
+  empty <- isEmpty
+  if empty
+    then return []
+    else do
+      r <- getAlignment
+      rs <- getReads
+      return (r:rs)
+
+getBamfile :: Get (Header, [Alignment])
+getBamfile = do
+  h <- getHeader
+  rs <- getReads
+  return (h, rs)
