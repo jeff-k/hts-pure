@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (getBamfile,header,alignments, getBlocks, Bgzf, deZ, getHeader, cdata, id1, isize) where
+module Bio.Alignment.Bam (getBamfile, Bamfile, header, alignments) where
 
 import System.IO
 
@@ -25,7 +25,7 @@ import Control.Monad
 
 data Bgzf = Bgzf {
     id1     :: Int,
-    cdata   :: B.ByteString,
+    cdata   :: L.ByteString,
     isize   :: Int,
     bsize   :: Int
 }
@@ -61,15 +61,6 @@ data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
 
 instance Show Bamfile where
     show b =  show (header b)
-
-blocks :: Get [Bgzf]
-blocks = do
-    empty <- isEmpty
-    if empty
-        then return []
-        else do
-            block <- getBgzf 
-            return [(block)]
 
 readb :: Word8 -> String
 readb s =
@@ -135,7 +126,7 @@ getBgzf = do
     slen <- fromIntegral <$> getWord16le
     bsize <- fromIntegral <$> getWord16le
     _ <- getByteString (xlen - 6)
-    cdata <- getByteString (bsize - xlen - 19)
+    cdata <- getLazyByteString (fromIntegral (bsize - xlen - 19))
     crc32 <- getWord32le
     isize <- fromIntegral <$> getWord32le
     
@@ -143,7 +134,7 @@ getBgzf = do
 
 
 deZ :: Bgzf -> L.ByteString
-deZ block = decompressWith params (L.fromStrict . cdata $ block)
+deZ block = decompressWith params (cdata block)
   where params = defaultDecompressParams
   --DecompressParams (isize block) 2**16 Nothing True
 
@@ -167,8 +158,8 @@ getReads = do
       rs <- getReads
       return (r:rs)
 
-getBamfile :: Get (Header, [Alignment])
+getBamfile :: Get Bamfile
 getBamfile = do
   h <- getHeader
   rs <- getReads
-  return (h, rs)
+  return $ Bamfile h rs
