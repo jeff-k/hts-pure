@@ -1,6 +1,4 @@
-module Bio.Data.Location (Pos, parsePos, coverage, interval) where
-
-import Data.Map as M
+module Bio.Data.Location (Pos, parsePos, coverage, interval, t) where
 
 data Pos = Pos {ref::String, interval::Maybe (Int, Int)}
 
@@ -12,6 +10,9 @@ instance Show Pos where
             rangeStr (b, e)
                 | b == e = ref c ++ ":" ++ (show b)
                 | otherwise = ref c ++ ":" ++ (show b) ++ "-" ++ (show e) 
+
+t :: Pos
+t = Pos "chr1" (Just (50000000, 100000000))
 
 coverage :: [Pos] -> [Pos]
 coverage = undefined

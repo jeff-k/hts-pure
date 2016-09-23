@@ -1,4 +1,4 @@
-module Bio.Alignment.BamIndex (getIndex,getOffset,Index) where
+module Bio.Alignment.BamIndex (getIndex,getOffset,Index,contigs) where
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
@@ -82,16 +82,21 @@ getIndex = do
         else do n_no_coor <- fmap fromIntegral getWord32le
                 return $ Index cs n_no_coor
 
-voffs :: [Chunk] -> [(Word64, Word64)]
+voffs :: [Chunk] -> [(Integer, Integer)]
 voffs i = map f i where
-    f v = ((beg v) `shiftR` 16, (beg v) .&. 65535)
+    f v = ((fromIntegral ((beg v) `shiftR` 16)), (fromIntegral ((beg v) .&. 65535)))
 
-getOffset :: Index -> Pos -> [(Word64, Word64)]
+getOffset :: Index -> Pos -> [(Integer, Integer)]
 getOffset i c =
     case (interval c) of
         Just (beg, end) ->  voffs (b_chunks (b!!bin_index)) where
-            bin_index = (fromIntegral (reg2bin ((fromIntegral beg)::Word64) ((fromIntegral end)::Word64)))::Int
+            bin_index = (fromIntegral (reg2bin ((fromIntegral beg)::Word64)
+                                               ((fromIntegral end)::Word64)))::Int
             b = bins ((contigs i)!!ref)
             offsets = ioffsets ((contigs i)!!ref)
-            ref = 0 -- get ref
-        Nothing -> []
+            ref = 7 -- get ref
+        Nothing -> voffs (b_chunks (b!!bin_index)) where
+          bin_index = (fromIntegral (reg2bin (0::Word64) (0::Word64)))
+          b = bins ((contigs i)!!ref)
+          offsets = ioffsets ((contigs i)!!ref)
+          ref = 7

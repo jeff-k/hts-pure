@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (getBamfile, Bamfile, header, alignments) where
+module Bio.Alignment.Bam (getBamfile, getBlocks, Bamfile, header, alignments, deZ, Alignment) where
 
 import System.IO
 
