@@ -8,6 +8,7 @@ import qualified Data.ByteString.Char8 as Bchar
 
 import Codec.Compression.Zlib.Raw
 
+import Data.Binary
 import Data.Binary.Get
 import Data.Word
 import Data.Int
@@ -30,6 +31,29 @@ data Bgzf = Bgzf {
     bsize   :: Int
 }
 
+instance Binary Bgzf where
+  put = undefined
+  get = do
+    id1 <- fromIntegral <$> getWord8
+    id2 <- getWord8
+    cm <- getWord8
+    flg <- getWord8
+    mtime <- fromIntegral <$> getWord32le
+    xfl <- fromIntegral <$> getWord8
+    os <- fromIntegral <$> getWord8
+    xlen <- fromIntegral <$> getWord16le
+    si1 <- fromIntegral <$> getWord8
+    si2 <- getWord8
+    slen <- fromIntegral <$> getWord16le
+    bsize <- fromIntegral <$> getWord16le
+    _ <- getByteString (xlen - 6)
+    cdata <- getLazyByteString (fromIntegral (bsize - xlen - 19))
+    crc32 <- getWord32le
+    isize <- fromIntegral <$> getWord32le
+    
+    return $ Bgzf id1 cdata isize bsize
+
+
 instance Show Bgzf where
   show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++ "\t" ++ (show . bsize $ bz) ++ "\n"
 
@@ -51,26 +75,9 @@ instance Show Alignment where
              (show . refID $ a) ++ "\t" ++ (show . r $ a) ++ "\t" ++
              (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
 
-instance Show Contig where
-    show c = name c
-
-instance Show Header where
-    show s = text s ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
-
-data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
-
-instance Show Bamfile where
-    show b =  show (header b)
-
-readb :: Word8 -> String
-readb s =
-    let l = (fromIntegral $ 15 .&. s)
-        b = fromIntegral $ s `shiftR` 4
-        t = "=ACMGRSVTWYHKDBN" in
-            [t!!b, t!!l]
-
-getAlignment :: Get Alignment
-getAlignment = do
+instance Binary Alignment where
+  put = undefined
+  get = do
     l <- fromIntegral <$> getWord32le
     refID <- fromIntegral <$> getWord32le
     pos <- fromIntegral <$> getWord32le
@@ -95,6 +102,24 @@ getAlignment = do
                        (concat (map readb (B.unpack seq)))
                        (map readcig cigar_ops)
 
+instance Show Contig where
+    show c = name c
+
+instance Show Header where
+    show s = text s ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
+
+data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
+
+instance Show Bamfile where
+    show b =  show (header b)
+
+readb :: Word8 -> String
+readb s =
+    let l = (fromIntegral $ 15 .&. s)
+        b = fromIntegral $ s `shiftR` 4
+        t = "=ACMGRSVTWYHKDBN" in
+            [t!!b, t!!l]
+
 ref :: Get Contig
 ref = do
     l_name <- fromIntegral <$> getWord32le
@@ -111,27 +136,6 @@ getHeader = do
     refs <- replicateM n_ref ref
     return $ Header (Bchar.unpack t) refs
 
-getBgzf :: Get Bgzf
-getBgzf = do
-    id1 <- fromIntegral <$> getWord8
-    id2 <- getWord8
-    cm <- getWord8
-    flg <- getWord8
-    mtime <- fromIntegral <$> getWord32le
-    xfl <- fromIntegral <$> getWord8
-    os <- fromIntegral <$> getWord8
-    xlen <- fromIntegral <$> getWord16le
-    si1 <- fromIntegral <$> getWord8
-    si2 <- getWord8
-    slen <- fromIntegral <$> getWord16le
-    bsize <- fromIntegral <$> getWord16le
-    _ <- getByteString (xlen - 6)
-    cdata <- getLazyByteString (fromIntegral (bsize - xlen - 19))
-    crc32 <- getWord32le
-    isize <- fromIntegral <$> getWord32le
-    
-    return $ Bgzf id1 cdata isize bsize
-
 
 deZ :: Bgzf -> L.ByteString
 deZ block = decompressWith params (cdata block)
@@ -144,7 +148,7 @@ getBlocks = do
   if empty
     then return []
     else do
-      b <- deZ <$> getBgzf
+      b <- deZ <$> (get :: Get Bgzf)
       bs <- getBlocks
       return (b:bs)
 
@@ -154,7 +158,7 @@ getReads = do
   if empty
     then return []
     else do
-      r <- getAlignment
+      r <- get :: Get Alignment
       rs <- getReads
       return (r:rs)
 
