@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (openBam,pileup,alignments,header) where
+module Bio.Alignment.Bam (openBam,pileup,alignments,header,refs) where
 
 import System.IO
 
@@ -57,7 +57,7 @@ instance Binary Bgzf where
 instance Show Bgzf where
   show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++ "\t" ++ (show . bsize $ bz) ++ "\n"
 
-data Header = Header {text::Maybe String, refs::[Contig]}
+data Header = Header {text::Maybe String, refs::[String]}
 
 data Alignment = Alignment {
     pos         :: Int,
@@ -67,8 +67,6 @@ data Alignment = Alignment {
     seq_a       :: String,
     cigar       :: [Cigar]
 }
-
-data Contig = Contig {name::String}
 
 instance Show Alignment where
     show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++
@@ -102,9 +100,6 @@ instance Binary Alignment where
                        (concat (map readb (B.unpack seq)))
                        (map readcig cigar_ops)
 
-instance Show Contig where
-    show c = name c
-
 instance Show Header where
     show s = case (text s) of
       Nothing -> concat $ map (\x -> (show x) ++ "\n") (refs s) 
@@ -122,12 +117,12 @@ readb s =
         t = "=ACMGRSVTWYHKDBN" in
             [t!!b, t!!l]
 
-getRef :: Get Contig
+getRef :: Get String
 getRef = do
     l_name <- fromIntegral <$> getWord32le
     name <- getByteString l_name 
     l_ref <- fromIntegral <$> getWord32le
-    return $ Contig (Bchar.unpack name)
+    return $ Bchar.unpack (B.init name)
 
 getHeader :: Get Header
 getHeader = do
@@ -138,8 +133,7 @@ getHeader = do
     refs <- replicateM n_ref getRef
     case l_header of
       0 -> return $ Header Nothing refs
-      otherwise -> return $ Header (Just (Bchar.unpack t)) refs
-
+      _ -> return $ Header (Just (Bchar.unpack t)) refs
 
 deZ :: Bgzf -> L.ByteString
 deZ block = decompressWith params (cdata block)
@@ -171,12 +165,12 @@ openBam path = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
   s <- L.hGetContents h
-  return $ Bamfile (runGet getHeader s) h
+  return $ Bamfile (runGet getHeader (L.concat $ runGet getBlocks s)) h
 
 alignments :: Bamfile -> IO [Alignment]
 alignments b = do
-  s <- L.hGetContents (handle b)
-  return $ [runGet (get :: Get Alignment) $ L.concat $ runGet getBlocks s]
+  s <- L.concat <$> runGet getBlocks <$> L.hGetContents (handle b)
+  return $ [runGet (get :: Get Alignment) s]
 
 pileup :: Bamfile -> Index -> Pos -> IO [Alignment]
 pileup b i pos =
