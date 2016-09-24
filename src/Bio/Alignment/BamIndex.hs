@@ -10,6 +10,7 @@ import Data.Binary.Get
 import Data.Word
 import Data.Int
 import Data.Bits
+import Data.List
 
 import Control.Applicative
 import Control.Monad
@@ -89,19 +90,18 @@ voffs i = map f i where
     f v = ((fromIntegral ((beg v) `shiftR` 16)), (fromIntegral ((beg v) .&. 65535)))
 
 offsets :: Index -> Pos -> [(Integer, Integer)]
-offsets i c =
-    case (interval c) of
-        Just (beg, end) ->  voffs (b_chunks (b!!bin_index)) where
-            bin_index = (fromIntegral (reg2bin ((fromIntegral beg)::Word64)
-                                               ((fromIntegral end)::Word64)))::Int
-            b = bins ((contigs i)!!ref)
-            offsets = ioffsets ((contigs i)!!ref)
-            ref = 7 -- get ref
-        Nothing -> voffs (b_chunks (b!!bin_index)) where
-          bin_index = (fromIntegral (reg2bin (0::Word64) (0::Word64)))
-          b = bins ((contigs i)!!ref)
-          offsets = ioffsets ((contigs i)!!ref)
-          ref = 7
+offsets i p =
+  case (interval p) of
+      Just (beg, end) ->  voffs (b_chunks (b!!bin_index)) where
+          bin_index = (fromIntegral (reg2bin ((fromIntegral beg)::Word64)
+                                             ((fromIntegral end)::Word64)))::Int
+          b = bins ((contigs i)!!r)
+          offsets = ioffsets ((contigs i)!!r)
+      Nothing -> voffs (b_chunks (b!!bin_index)) where
+        bin_index = (fromIntegral (reg2bin (0::Word64) (0::Word64)))
+        b = bins ((contigs i)!!r)
+        offsets = ioffsets ((contigs i)!!r)
+  where Just r = findIndex ((ref p) ==) (refs i)
 
 openIndex :: String -> [String] -> IO Index
 openIndex path contigs = do

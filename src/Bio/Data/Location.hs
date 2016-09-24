@@ -1,4 +1,4 @@
-module Bio.Data.Location (Pos, parsePos, coverage, interval) where
+module Bio.Data.Location (Pos,parsePos,coverage,interval,ref) where
 
 data Pos = Pos {ref::String, interval::Maybe (Int, Int)}
 

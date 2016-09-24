@@ -122,8 +122,8 @@ readb s =
         t = "=ACMGRSVTWYHKDBN" in
             [t!!b, t!!l]
 
-ref :: Get Contig
-ref = do
+getRef :: Get Contig
+getRef = do
     l_name <- fromIntegral <$> getWord32le
     name <- getByteString l_name 
     l_ref <- fromIntegral <$> getWord32le
@@ -135,7 +135,7 @@ getHeader = do
     l_header <- fromIntegral <$> getWord32le
     t <- getByteString l_header
     n_ref <- fromIntegral <$> getWord32le
-    refs <- replicateM n_ref ref
+    refs <- replicateM n_ref getRef
     case l_header of
       0 -> return $ Header Nothing refs
       otherwise -> return $ Header (Just (Bchar.unpack t)) refs
