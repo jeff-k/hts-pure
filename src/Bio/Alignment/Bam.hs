@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (getBamfile, getBlocks, Bamfile, header, alignments, deZ, Alignment) where
+module Bio.Alignment.Bam (openBam,pileup,alignments,header) where
 
 import System.IO
 
@@ -57,7 +57,7 @@ instance Binary Bgzf where
 instance Show Bgzf where
   show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++ "\t" ++ (show . bsize $ bz) ++ "\n"
 
-data Header = Header {text::String, refs::[Contig]}
+data Header = Header {text::Maybe String, refs::[Contig]}
 
 data Alignment = Alignment {
     pos         :: Int,
@@ -106,9 +106,11 @@ instance Show Contig where
     show c = name c
 
 instance Show Header where
-    show s = text s ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
+    show s = case (text s) of
+      Nothing -> concat $ map (\x -> (show x) ++ "\n") (refs s) 
+      Just t -> t ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
 
-data Bamfile = Bamfile {header::Header, alignments::[Alignment]}
+data Bamfile = Bamfile {header::Header, handle::Handle}
 
 instance Show Bamfile where
     show b =  show (header b)
@@ -134,7 +136,9 @@ getHeader = do
     t <- getByteString l_header
     n_ref <- fromIntegral <$> getWord32le
     refs <- replicateM n_ref ref
-    return $ Header (Bchar.unpack t) refs
+    case l_header of
+      0 -> return $ Header Nothing refs
+      otherwise -> return $ Header (Just (Bchar.unpack t)) refs
 
 
 deZ :: Bgzf -> L.ByteString
@@ -162,8 +166,24 @@ getReads = do
       rs <- getReads
       return (r:rs)
 
-getBamfile :: Get Bamfile
-getBamfile = do
-  h <- getHeader
-  rs <- getReads
-  return $ Bamfile h rs
+openBam :: String -> IO Bamfile
+openBam path = do
+  h <- openFile path ReadMode
+  hSetBinaryMode h True
+  s <- L.hGetContents h
+  return $ Bamfile (runGet getHeader s) h
+
+alignments :: Bamfile -> IO [Alignment]
+alignments b = do
+  s <- L.hGetContents (handle b)
+  return $ [runGet (get :: Get Alignment) $ L.concat $ runGet getBlocks s]
+
+pileup :: Bamfile -> Index -> Pos -> IO [Alignment]
+pileup b i pos =
+  let (c, u) = (offsets i pos)!!0 in
+    do
+      hSeek (handle b) AbsoluteSeek c
+      as <- alignments b
+      return as
+--      s <- L.hGetContents (handle b)
+--      return $ [runGet (get :: Get Alignment) $ L.concat $ runGet getBlocks s]

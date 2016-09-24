@@ -1,4 +1,6 @@
-module Bio.Alignment.BamIndex (getIndex,getOffset,Index,contigs) where
+module Bio.Alignment.BamIndex (openIndex,offsets,Index,contigs) where
+
+import System.IO
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
@@ -17,7 +19,7 @@ import Bio.Data.Location
 data Chunk = Chunk {beg::Word64, end::Word64}
 data Bin = Bin {m::Int, b_chunks::[Chunk]}
 
-data Index = Index {contigs::[ContigIndex], n_no_coor::Int}
+data Index = Index {contigs::[ContigIndex], n_no_coor::Int, refs::[String]}
 
 data ContigIndex = ContigIndex {bins::[Bin], ioffsets::[Int]}
 
@@ -71,23 +73,23 @@ bin = do
     b_chunks <- replicateM n_chunks chunk 
     return $ Bin bin_id b_chunks
 
-getIndex :: Get Index
-getIndex = do
+getIndex :: [String] -> Get Index
+getIndex refs = do
     getByteString 4
     n_ref <- fromIntegral <$> getWord32le
     cs <- replicateM n_ref contigIndex
     empty <- isEmpty
     if empty
-        then return $ Index cs 0
+        then return $ Index cs 0 refs
         else do n_no_coor <- fmap fromIntegral getWord32le
-                return $ Index cs n_no_coor
+                return $ Index cs n_no_coor refs
 
 voffs :: [Chunk] -> [(Integer, Integer)]
 voffs i = map f i where
     f v = ((fromIntegral ((beg v) `shiftR` 16)), (fromIntegral ((beg v) .&. 65535)))
 
-getOffset :: Index -> Pos -> [(Integer, Integer)]
-getOffset i c =
+offsets :: Index -> Pos -> [(Integer, Integer)]
+offsets i c =
     case (interval c) of
         Just (beg, end) ->  voffs (b_chunks (b!!bin_index)) where
             bin_index = (fromIntegral (reg2bin ((fromIntegral beg)::Word64)
@@ -100,3 +102,10 @@ getOffset i c =
           b = bins ((contigs i)!!ref)
           offsets = ioffsets ((contigs i)!!ref)
           ref = 7
+
+openIndex :: String -> [String] -> IO Index
+openIndex path contigs = do
+  h <- openFile path ReadMode
+  hSetBinaryMode h True
+  s <- L.hGetContents h
+  return $ (runGet (getIndex contigs) s)
