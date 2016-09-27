@@ -99,8 +99,8 @@ voffs :: [Chunk] -> [(Integer, Integer)]
 voffs i = map f i where
     f v = ((fromIntegral ((beg v) `shiftR` 16)), (fromIntegral ((beg v) .&. 65535)))
 
-openIndex :: String -> [String] -> IO Index
-openIndex path contigs = do
+openIndex :: String -> IO Index
+openIndex path = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
   s <- L.hGetContents h
