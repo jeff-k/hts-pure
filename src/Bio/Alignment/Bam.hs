@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (openBam,pileup,alignments,header,refs) where
+module Bio.Alignment.Bam (openBamR,pileup,Bamfile,header,refs) where
 
 import System.IO
 
@@ -105,7 +105,7 @@ instance Show Header where
       Nothing -> concat $ map (\x -> (show x) ++ "\n") (refs s) 
       Just t -> t ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
 
-data Bamfile = Bamfile {header::Header, handle::Handle}
+data Bamfile = Bamfile {header::Header, pileup::Pos -> IO [Alignment]}
 
 instance Show Bamfile where
     show b =  show (header b)
@@ -160,24 +160,22 @@ getReads = do
       rs <- getReads
       return (r:rs)
 
-openBam :: String -> IO Bamfile
-openBam path = do
+--openBam :: String -> IO Bamfile
+--openBam path = do
+--  h <- openFile path ReadMode
+--  hSetBinaryMode h True
+--  s <- L.hGetContents h
+--  return $ Bamfile (runGet getHeader (L.concat $ runGet getBlocks s)) 
+
+openBamR :: String -> Index -> IO Bamfile
+openBamR path index = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
-  s <- L.hGetContents h
-  return $ Bamfile (runGet getHeader (L.concat $ runGet getBlocks s)) h
+  bs <- (\s -> L.concat $ runGet getBlocks s) <$> L.hGetContents h
+--  hdr <- runGet getHeader bs
+--  rs <- runGet getReads bs
+  let pileup pos = do hSeek h AbsoluteSeek $ fst $ (offsets index pos)!!0
+                      bs <- L.concat <$> runGet getBlocks <$> L.hGetContents h
+                      return $ runGet getReads bs
+  return $ Bamfile (runGet getHeader bs) pileup
 
-alignments :: Bamfile -> IO [Alignment]
-alignments b = do
-  s <- L.concat <$> runGet getBlocks <$> L.hGetContents (handle b)
-  return $ [runGet (get :: Get Alignment) s]
-
-pileup :: Bamfile -> Index -> Pos -> IO [Alignment]
-pileup b i pos =
-  let (c, u) = (offsets i pos)!!0 in
-    do
-      hSeek (handle b) AbsoluteSeek c
-      as <- alignments b
-      return as
---      s <- L.hGetContents (handle b)
---      return $ [runGet (get :: Get Alignment) $ L.concat $ runGet getBlocks s]
