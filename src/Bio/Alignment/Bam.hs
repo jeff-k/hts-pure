@@ -174,8 +174,9 @@ openBamR path index = do
   bs <- (\s -> L.concat $ runGet getBlocks s) <$> L.hGetContents h
 --  hdr <- runGet getHeader bs
 --  rs <- runGet getReads bs
-  let pileup pos = do hSeek h AbsoluteSeek $ fst $ (offsets index pos)!!0
+  let pileup pos = do hSeek h AbsoluteSeek $ fst $ (offsets index 0 0 0)!!0
                       bs <- L.concat <$> runGet getBlocks <$> L.hGetContents h
                       return $ runGet getReads bs
-  return $ Bamfile (runGet getHeader bs) pileup
+      hdr = runGet getHeader bs
+  return $ Bamfile hdr pileup
 

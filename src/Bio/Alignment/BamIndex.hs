@@ -20,7 +20,9 @@ import Bio.Data.Location
 data Chunk = Chunk {beg::Word64, end::Word64}
 data Bin = Bin {m::Int, b_chunks::[Chunk]}
 
-data Index = Index {contigs::[ContigIndex], n_no_coor::Int, refs::[String]}
+data Index = Index { contigs :: [ContigIndex],
+                     n_no_coor :: Int,
+                     offsets :: Int -> Integer -> Integer -> [(Integer, Integer)] }
 
 data ContigIndex = ContigIndex {bins::[Bin], ioffsets::[Int]}
 
@@ -74,38 +76,34 @@ bin = do
     b_chunks <- replicateM n_chunks chunk 
     return $ Bin bin_id b_chunks
 
-getIndex :: [String] -> Get Index
-getIndex refs = do
+getIndex :: Get Index
+getIndex = do
     getByteString 4
     n_ref <- fromIntegral <$> getWord32le
     cs <- replicateM n_ref contigIndex
     empty <- isEmpty
+    let offsets ref beg end = voffs (b_chunks ((bins ((cs)!!ref))!!(bin_index beg end))) 
+
     if empty
-        then return $ Index cs 0 refs
-        else do n_no_coor <- fmap fromIntegral getWord32le
-                return $ Index cs n_no_coor refs
+      then return $ Index cs 0 offsets
+      else do
+        n_no_coor <- fmap fromIntegral getWord32le
+        return $ Index cs n_no_coor offsets
+    where
+      bin_index beg end = (fromIntegral (reg2bin ((fromIntegral beg)::Word64)
+                                                 ((fromIntegral end)::Word64)))::Int
+--          offsets = ioffsets ((contigs i)!!r)
+
 
 voffs :: [Chunk] -> [(Integer, Integer)]
 voffs i = map f i where
     f v = ((fromIntegral ((beg v) `shiftR` 16)), (fromIntegral ((beg v) .&. 65535)))
-
-offsets :: Index -> Pos -> [(Integer, Integer)]
-offsets i p =
-  case (interval p) of
-      Just (beg, end) ->  voffs (b_chunks (b!!bin_index)) where
-          bin_index = (fromIntegral (reg2bin ((fromIntegral beg)::Word64)
-                                             ((fromIntegral end)::Word64)))::Int
-          b = bins ((contigs i)!!r)
-          offsets = ioffsets ((contigs i)!!r)
-      Nothing -> voffs (b_chunks (b!!bin_index)) where
-        bin_index = (fromIntegral (reg2bin (0::Word64) (0::Word64)))
-        b = bins ((contigs i)!!r)
-        offsets = ioffsets ((contigs i)!!r)
-  where Just r = findIndex ((ref p) ==) (refs i)
 
 openIndex :: String -> [String] -> IO Index
 openIndex path contigs = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
   s <- L.hGetContents h
-  return $ (runGet (getIndex contigs) s)
+  let 
+    i = runGet getIndex
+  return $ (runGet getIndex s)
