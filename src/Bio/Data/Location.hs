@@ -1,4 +1,4 @@
-module Bio.Data.Location (Pos,coverage,interval,ref) where
+module Bio.Data.Location (mkPos,Pos,coverage,interval,ref) where
 
 data Pos = Pos {ref::String, interval::(Integer, Integer)}
 
@@ -11,9 +11,8 @@ instance Show Pos where
               | b == e = ref c ++ ":" ++ (show b)
               | otherwise = ref c ++ ":" ++ (show b) ++ "-" ++ (show e) 
 
---instance Read Pos where
---  read p = undefined
-
 coverage :: [Pos] -> [Pos]
 coverage = undefined
 
+mkPos :: String -> Integer -> Integer -> Pos
+mkPos r b e = Pos r (b,e)
