@@ -64,7 +64,7 @@ data Header = Header {text::Maybe String, refs::[String]}
 data Alignment = Alignment {
     pos         :: Int,
     refID       :: Int,
-    r           :: Int,
+    qqqq        :: Int,
     read_name   :: String,
     seq_a       :: String,
     cigar       :: [Cigar]
@@ -72,7 +72,7 @@ data Alignment = Alignment {
 
 instance Show Alignment where
     show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++
-             (show . refID $ a) ++ "\t" ++ (show . r $ a) ++ "\t" ++
+             (show . refID $ a) ++ "\t" ++ (show . qqqq $ a) ++ "\t" ++
              (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
 
 instance Binary Alignment where
@@ -95,8 +95,8 @@ instance Binary Alignment where
     seq <- getByteString (div (l_seq + 1) 2)
     qual <- getByteString l_seq 
     tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2))
-    return $ Alignment refID
-                       pos
+    return $ Alignment pos
+                       refID
                        mapq
                        (Bchar.unpack read_name)
                        (concat (map readb (B.unpack seq)))
@@ -107,7 +107,7 @@ instance Show Header where
       Nothing -> concat $ map (\x -> (show x) ++ "\n") (refs s) 
       Just t -> t ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
 
-data Bamfile = Bamfile {header::Header, pileup::Pos -> IO [Alignment]}
+data Bamfile = Bamfile {header::Header, pileup:: Pos -> IO [Alignment]}
 
 instance Show Bamfile where
     show b =  show (header b)
@@ -162,6 +162,20 @@ getReads = do
       rs <- getReads
       return (r:rs)
 
+getReadsR :: Pos -> Get [Alignment]
+getReadsR p = do
+  empty <- isEmpty
+  if empty
+    then return []
+    else do
+      r <- get :: Get Alignment
+      rs <- getReadsR p
+      if (pos r) >= (fromIntegral $ fst $ interval p) &&
+         (pos r) <= (fromIntegral $ snd $ interval p) &&
+         (refID r) == ref p
+        then return (r:rs)
+        else return rs
+
 --openBam :: String -> IO Bamfile
 --openBam path = do
 --  h <- openFile path ReadMode
@@ -173,14 +187,10 @@ openBamR :: String -> Index -> IO Bamfile
 openBamR path index = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
-  bs <- (\s -> L.concat $ runGet getBlocks s) <$> L.hGetContents h
---  hdr <- runGet getHeader bs
---  rs <- runGet getReads bs
-  let pileup p = do hSeek h AbsoluteSeek $ fst $ (offsets index r (fst $ interval p)
-                                                                  (snd $ interval p))!!0
-                    bs <- L.concat <$> runGet getBlocks <$> L.hGetContents h
-                    return $ runGet getReads bs
-        where Just r = findIndex ((ref p) ==) (refs hdr)
-      hdr = runGet getHeader bs
-  return $ Bamfile hdr pileup
+  hdr <- runGet getHeader <$> (\s -> L.concat $ runGet getBlocks s) <$> L.hGetContents h
+  let mkPileup p = do
+                     hSeek h AbsoluteSeek $ fst $ (offsets index (ref p) (fst $ interval p) (snd $ interval p))!!0
+                     bs <- L.concat <$> runGet getBlocks <$> L.hGetContents h
+                     return $ runGet (getReadsR p) bs
 
+  return $ Bamfile hdr mkPileup
