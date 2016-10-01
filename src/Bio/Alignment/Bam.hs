@@ -1,4 +1,4 @@
-module Bio.Alignment.Bam (openBamR,pileup,Bamfile,header,refs) where
+module Bio.Alignment.Bam (openBam,alignments,pileup,Bamfile,header,refs) where
 
 import System.IO
 
@@ -178,8 +178,8 @@ getReadsR p = do
         then return (r:rs)
         else return rs
 
-openBamR :: String -> Maybe Index -> IO Bamfile
-openBamR path mindex = do
+openBam :: String -> Maybe Index -> IO Bamfile
+openBam path mindex = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
   let
