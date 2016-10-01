@@ -17,8 +17,8 @@ import Control.Monad
 
 import Bio.Data.Location
 
-data Chunk = Chunk {beg::Word64, end::Word64}
-data Bin = Bin {m::Int, b_chunks::[Chunk]}
+data Chunk = Chunk {beg :: Word64, end :: Word64}
+data Bin = Bin {m :: Int, b_chunks :: [Chunk]}
 
 data Index = Index { contigs :: [ContigIndex],
                      n_no_coor :: Int,
@@ -27,15 +27,15 @@ data Index = Index { contigs :: [ContigIndex],
 data ContigIndex = ContigIndex {bins::[Bin], ioffsets::[Int]}
 
 instance Show Chunk where
-    show c = (show (beg c)) ++ "-" ++ (show (end c))
+    show c = show (beg c) ++ "-" ++ show (end c)
 
 instance Show Index where
     show i = "Contigs:\t" ++ show (length (contigs i)) ++ "\n\t"
                           ++ show (contigs i) ++ "\n\t"
 
 instance Show Bin where
-    show b = show (m b) ++ (concat (map (\x -> "\t" ++ (show x) ++ "\n")
-                                   (b_chunks b)))
+    show b = show (m b) ++
+               concatMap (\x -> "\t" ++ show x ++ "\n") (b_chunks b)
 
 instance Show ContigIndex where
     show c = show (bins c)
@@ -82,7 +82,7 @@ getIndex = do
     n_ref <- fromIntegral <$> getWord32le
     cs <- replicateM n_ref contigIndex
     empty <- isEmpty
-    let offsets ref beg end = voffs (b_chunks ((bins ((cs)!!ref))!!(bin_index beg end))) 
+    let offsets ref beg end = voffs (b_chunks (bins (cs !! ref) !! bin_index beg end)) 
 
     if empty
       then return $ Index cs 0 offsets
@@ -90,14 +90,13 @@ getIndex = do
         n_no_coor <- fmap fromIntegral getWord32le
         return $ Index cs n_no_coor offsets
     where
-      bin_index beg end = (fromIntegral (reg2bin ((fromIntegral beg)::Word64)
-                                                 ((fromIntegral end)::Word64)))::Int
---          offsets = ioffsets ((contigs i)!!r)
-
+      bin_index beg end = fromIntegral
+                            (reg2bin (fromIntegral beg :: Word64) (fromIntegral end :: Word64))
+                            :: Int
 
 voffs :: [Chunk] -> [(Integer, Integer)]
-voffs i = map f i where
-    f v = ((fromIntegral ((beg v) `shiftR` 16)), (fromIntegral ((beg v) .&. 65535)))
+voffs = map f where
+    f v = (fromIntegral (beg v `shiftR` 16), fromIntegral (beg v .&. 65535))
 
 openIndex :: String -> IO Index
 openIndex path = do
@@ -106,4 +105,4 @@ openIndex path = do
   s <- L.hGetContents h
   let 
     i = runGet getIndex
-  return $ (runGet getIndex s)
+  return $ runGet getIndex s

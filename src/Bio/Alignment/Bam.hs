@@ -16,8 +16,6 @@ import Data.Bits
 
 import Data.List (findIndex)
 
-import System.IO (isEOF)
-
 import Bio.Alignment.BamIndex
 
 import Bio.Data.Cigar
@@ -71,9 +69,9 @@ data Alignment = Alignment {
 }
 
 instance Show Alignment where
-    show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++
+    show a = read_name a ++ "\t" ++ (show . pos $ a) ++ "\t" ++
              (show . refID $ a) ++ "\t" ++ (show . mapq $ a) ++ "\t" ++
-             (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
+             seq_a a ++ "\t" ++ (show . cigar $ a) ++ "\n"
 
 instance Binary Alignment where
   put = undefined
@@ -94,18 +92,18 @@ instance Binary Alignment where
     cigar_ops <- replicateM n_cigar_op getWord32le
     seq <- getByteString (div (l_seq + 1) 2)
     qual <- getByteString l_seq 
-    tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - (div (l_seq + 1) 2))
+    tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - div (l_seq + 1) 2)
     return $ Alignment pos
                        refID
                        mapq
                        (Bchar.unpack read_name)
-                       (concat (map readb (B.unpack seq)))
+                       (concatMap readb (B.unpack seq))
                        (map readcig cigar_ops)
 
 instance Show Header where
-    show s = case (text s) of
-      Nothing -> concat $ map (\x -> (show x) ++ "\n") (refs s) 
-      Just t -> t ++ "\n" ++ (concat $ map (\x -> (show x) ++ "\n") (refs s))
+    show s = case text s of
+      Nothing -> concatMap (\ x -> show x ++ "\n") (refs s) 
+      Just t -> t ++ "\n" ++ concatMap (\ x -> show x ++ "\n") (refs s)
 
 data Bamfile = Bamfile {header::Header, pileup:: Pos -> IO [Alignment]}
 
@@ -170,9 +168,9 @@ getReadsR p = do
     else do
       r <- get :: Get Alignment
       rs <- getReadsR p
-      if (pos r) >= (fromIntegral $ fst $ interval p) &&
-         (pos r) <= (fromIntegral $ snd $ interval p) &&
-         (refID r) == ref p
+      if pos r >= fromIntegral (fst $ interval p) &&
+         pos r <= fromIntegral (snd $ interval p) &&
+         refID r == ref p
         then return (r:rs)
         else return rs
 
@@ -187,14 +185,11 @@ openBamR :: String -> Index -> IO Bamfile
 openBamR path index = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
-  hdr <- runGet getHeader <$> (\s -> L.concat $ runGet getBlocks s) <$>
-                              L.hGetContents h
+  hdr <- runGet getHeader . L.concat . runGet getBlocks <$> L.hGetContents h
   let pileup p = do
-                    hSeek h AbsoluteSeek $ fst $ (offsets index 
-                                                          (ref p)
-                                                          (fst $ interval p)
-                                                          (snd $ interval p))!!0
-                    bs <- L.concat <$> runGet getBlocks <$> L.hGetContents h
+                    hSeek h AbsoluteSeek $ fst $
+                      head (uncurry (offsets index (ref p) (intervals p)))
+                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h
                     return $ runGet (getReadsR p) bs
 
   return $ Bamfile hdr pileup
