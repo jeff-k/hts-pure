@@ -99,7 +99,7 @@ instance Binary Alignment where
                        mapq
                        (Bchar.unpack read_name)
                        (concatMap readb (B.unpack seq))
-                       (map readcig cigar_ops)
+                       (map readCig cigar_ops)
 
 instance Show Header where
     show s = case text s of
@@ -172,7 +172,7 @@ getReadsR p = do
     else do
       r <- get :: Get Alignment
       rs <- getReadsR p
-      if pos r >= fromIntegral (fst $ interval p) &&
+      if pos r >= fromIntegral (fst $ interval p) && -- should subtract readlen
          pos r <= fromIntegral (snd $ interval p) &&
          refID r == ref p
         then return (r:rs)
