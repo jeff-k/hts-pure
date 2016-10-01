@@ -57,7 +57,7 @@ instance Binary Bgzf where
 instance Show Bgzf where
   show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++ "\t" ++ (show . bsize $ bz) ++ "\n"
 
-data Header = Header {text :: Maybe String, refs :: [String]}
+data Header = Header { text :: Maybe String, refs :: [String] }
 
 data Alignment = Alignment {
     pos         :: Int,
@@ -106,10 +106,13 @@ instance Show Header where
       Nothing -> concatMap (\ x -> show x ++ "\n") (refs s) 
       Just t -> t ++ "\n" ++ concatMap (\ x -> show x ++ "\n") (refs s)
 
-data Bamfile = Bamfile { header :: Header, pileup :: Pos -> IO [Alignment] }
+data Bamfile = Bamfile { header :: IO Header,
+--                         pileup :: Maybe (Pos -> IO [Alignment]),
+                         pileup :: Pos -> IO [Alignment],
+                         reads  :: IO [Alignment] }
 
-instance Show Bamfile where
-    show b =  show (header b)
+--instance Show Bamfile where
+--    show b =  show (header b)
 
 readb :: Word8 -> String
 readb s =
@@ -175,22 +178,30 @@ getReadsR p = do
         then return (r:rs)
         else return rs
 
---openBam :: String -> IO Bamfile
---openBam path = do
---  h <- openFile path ReadMode
---  hSetBinaryMode h True
---  s <- L.hGetContents h
---  return $ Bamfile (runGet getHeader (L.concat $ runGet getBlocks s)) 
-
-openBamR :: String -> Index -> IO Bamfile
-openBamR path index = do
+openBamR :: String -> Maybe Index -> IO Bamfile
+openBamR path mindex = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
-  hdr <- runGet getHeader . L.concat . runGet getBlocks <$> L.hGetContents h
-  let pileup p = do
+  let
+    pileup p = case mindex of
+                  Just index -> do
                     hSeek h AbsoluteSeek $ fst $
                       head (uncurry (offsets index (ref p)) (interval p))
                     bs <- L.concat . runGet getBlocks <$> L.hGetContents h
                     return $ runGet (getReadsR p) bs
+                  Nothing -> do
+                    hSeek h AbsoluteSeek 0
+                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h
+                    return $ runGet (getReadsR p) bs
 
-  return $ Bamfile hdr pileup
+    header = do
+      hSeek h AbsoluteSeek 0
+      runGet getHeader . L.concat . runGet getBlocks <$> L.hGetContents h
+
+    reads = do
+      hSeek h AbsoluteSeek 0
+      bs <- L.concat . runGet getBlocks <$> L.hGetContents h
+--      _ <- runGet getHeader bs
+      return $ runGet getReads bs 
+
+  return $ Bamfile header pileup reads
