@@ -1,4 +1,5 @@
-module Bio.Alignment.Bam (openBam,alignments,pileup,Bamfile,header,refs) where
+module Bio.Alignment.Bam (openBam,closeBam,alignments,pileup,Bamfile,
+                          header,refs,mapq) where
 
 import System.IO
 
@@ -108,10 +109,8 @@ instance Show Header where
 
 data Bamfile = Bamfile { header      :: IO Header,
                          pileup      :: Pos -> IO [Alignment],
-                         alignments  :: IO [Alignment] }
-
---instance Show Bamfile where
---    show b =  show (header b)
+                         alignments  :: IO [Alignment],
+                         closeBam    :: IO () }
 
 readb :: Word8 -> String
 readb s =
@@ -199,8 +198,12 @@ openBam path mindex = do
 
     alignments = do
       hSeek h AbsoluteSeek 0
-      bs <- L.concat . runGet getBlocks <$> L.hGetContents h
+      bs <- L.concat . tail <$> runGet getBlocks <$> L.hGetContents h
 --      _ <- runGet getHeader bs
       return $ runGet getReads bs 
 
-  return $ Bamfile header pileup alignments
+    closeBam = do
+      hClose h
+      return ()
+
+  return $ Bamfile header pileup alignments closeBam
