@@ -5,23 +5,27 @@ bam and bam index files.
 ## Examples
 Filter reads with a mapping quality less than or equal to 25:
 
-  import Bio.Alignment.Bam
+```haskell
+import Bio.Alignment.Bam
 
-  main = do
-    bam <- openBam "bamfile.bam" Nothing
-    rs <- filter (\r -> 25 > mapq r) <$> alignments bam
-    print rs
+main = do
+  bam <- openBam "bamfile.bam" Nothing
+  rs <- filter (\r -> 25 > mapq r) <$> alignments bam
+  print rs
+```
 
 Using an index to seek within a bam file:
 
-  import Bio.Alignment.Bam
-  import Bio.Alignment.BamIndex
+```haskell
+import Bio.Alignment.Bam
+import Bio.Alignment.BamIndex
 
-  main = do
-    index <- openIndex "bamfile.bam.bai"
-    bam <- openBam "bamfile.bam.bai" (Just index)
-    rs <- pileup bam $ Pos 5 20000 30000
-    print rs
+main = do
+  index <- openIndex "bamfile.bam.bai"
+  bam <- openBam "bamfile.bam.bai" (Just index)
+  rs <- pileup bam $ Pos 5 20000 30000
+  print rs
+```
 
 ## Issues
   * Bamfile handle is being closed after `pileup`, `alignments`, or `header`
