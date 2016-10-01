@@ -64,7 +64,7 @@ data Header = Header {text::Maybe String, refs::[String]}
 data Alignment = Alignment {
     pos         :: Int,
     refID       :: Int,
-    qqqq        :: Int,
+    mapq        :: Int,
     read_name   :: String,
     seq_a       :: String,
     cigar       :: [Cigar]
@@ -72,7 +72,7 @@ data Alignment = Alignment {
 
 instance Show Alignment where
     show a = (read_name a) ++ "\t" ++ (show . pos $ a) ++ "\t" ++
-             (show . refID $ a) ++ "\t" ++ (show . qqqq $ a) ++ "\t" ++
+             (show . refID $ a) ++ "\t" ++ (show . mapq $ a) ++ "\t" ++
              (seq_a a) ++ "\t" ++ (show . cigar $ a) ++ "\n"
 
 instance Binary Alignment where
@@ -187,10 +187,14 @@ openBamR :: String -> Index -> IO Bamfile
 openBamR path index = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
-  hdr <- runGet getHeader <$> (\s -> L.concat $ runGet getBlocks s) <$> L.hGetContents h
-  let mkPileup p = do
-                     hSeek h AbsoluteSeek $ fst $ (offsets index (ref p) (fst $ interval p) (snd $ interval p))!!0
-                     bs <- L.concat <$> runGet getBlocks <$> L.hGetContents h
-                     return $ runGet (getReadsR p) bs
+  hdr <- runGet getHeader <$> (\s -> L.concat $ runGet getBlocks s) <$>
+                              L.hGetContents h
+  let pileup p = do
+                    hSeek h AbsoluteSeek $ fst $ (offsets index 
+                                                          (ref p)
+                                                          (fst $ interval p)
+                                                          (snd $ interval p))!!0
+                    bs <- L.concat <$> runGet getBlocks <$> L.hGetContents h
+                    return $ runGet (getReadsR p) bs
 
-  return $ Bamfile hdr mkPileup
+  return $ Bamfile hdr pileup
