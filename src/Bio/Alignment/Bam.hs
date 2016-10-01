@@ -57,7 +57,7 @@ instance Binary Bgzf where
 instance Show Bgzf where
   show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++ "\t" ++ (show . bsize $ bz) ++ "\n"
 
-data Header = Header {text::Maybe String, refs::[String]}
+data Header = Header {text :: Maybe String, refs :: [String]}
 
 data Alignment = Alignment {
     pos         :: Int,
@@ -92,7 +92,8 @@ instance Binary Alignment where
     cigar_ops <- replicateM n_cigar_op getWord32le
     seq <- getByteString (div (l_seq + 1) 2)
     qual <- getByteString l_seq 
-    tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq - div (l_seq + 1) 2)
+    tags <- getByteString (l - 32 - l_read_name - (n_cigar_op * 4) - l_seq -
+                           div (l_seq + 1) 2)
     return $ Alignment pos
                        refID
                        mapq
@@ -105,7 +106,7 @@ instance Show Header where
       Nothing -> concatMap (\ x -> show x ++ "\n") (refs s) 
       Just t -> t ++ "\n" ++ concatMap (\ x -> show x ++ "\n") (refs s)
 
-data Bamfile = Bamfile {header::Header, pileup:: Pos -> IO [Alignment]}
+data Bamfile = Bamfile { header :: Header, pileup :: Pos -> IO [Alignment] }
 
 instance Show Bamfile where
     show b =  show (header b)
