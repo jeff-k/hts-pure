@@ -106,10 +106,9 @@ instance Show Header where
       Nothing -> concatMap (\ x -> show x ++ "\n") (refs s) 
       Just t -> t ++ "\n" ++ concatMap (\ x -> show x ++ "\n") (refs s)
 
-data Bamfile = Bamfile { header :: IO Header,
---                         pileup :: Maybe (Pos -> IO [Alignment]),
-                         pileup :: Pos -> IO [Alignment],
-                         reads  :: IO [Alignment] }
+data Bamfile = Bamfile { header      :: IO Header,
+                         pileup      :: Pos -> IO [Alignment],
+                         alignments  :: IO [Alignment] }
 
 --instance Show Bamfile where
 --    show b =  show (header b)
@@ -198,10 +197,10 @@ openBam path mindex = do
       hSeek h AbsoluteSeek 0
       runGet getHeader . L.concat . runGet getBlocks <$> L.hGetContents h
 
-    reads = do
+    alignments = do
       hSeek h AbsoluteSeek 0
       bs <- L.concat . runGet getBlocks <$> L.hGetContents h
 --      _ <- runGet getHeader bs
       return $ runGet getReads bs 
 
-  return $ Bamfile header pileup reads
+  return $ Bamfile header pileup alignments
