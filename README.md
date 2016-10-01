@@ -10,8 +10,7 @@ import Bio.Alignment.Bam
 
 main = do
   bam <- openBam "bamfile.bam" Nothing
-  rs <- filter (\r -> 25 > mapq r) <$> alignments bam
-  print rs
+  filter (\r -> mapq r <= 25) <$> alignments bam >>= print
 ```
 
 Using an index to seek within a bam file:
@@ -23,8 +22,7 @@ import Bio.Alignment.BamIndex
 main = do
   index <- openIndex "bamfile.bam.bai"
   bam <- openBam "bamfile.bam.bai" (Just index)
-  rs <- pileup bam $ Pos 5 20000 30000
-  print rs
+  pileup bam (Pos 5 20000 30000) >>= print
 ```
 
 ## Issues
