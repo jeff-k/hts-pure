@@ -40,6 +40,9 @@ instance Show Bin where
 instance Show ContigIndex where
     show c = show (bins c)
 
+-- This implementation is copied almost verbatim from the sam spec to ensure
+-- correctness. A parallel implementation in idiomatic haskell is absolutely
+-- welcome
 reg2bin :: Word64 -> Word64 -> Word64
 reg2bin b e
     | log_shift 14 b e = calc_bin 14 15 b

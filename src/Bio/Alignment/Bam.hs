@@ -66,11 +66,13 @@ data Alignment = Alignment {
     mapq        :: Int,
     read_name   :: String,
     seq_a       :: String,
-    cigar       :: [Cigar]
+    cigar       :: [Cigar],
+    flag        :: Int
 }
 
 instance Show Alignment where
-    show a = read_name a ++ "\t" ++ (show . pos $ a) ++ "\t" ++
+    show a = read_name a ++ "\t" ++ (show . flag $ a) ++ "\t" ++
+             (show . pos $ a) ++ "\t" ++
              (show . refID $ a) ++ "\t" ++ (show . mapq $ a) ++ "\t" ++
              seq_a a ++ "\t" ++ (show . cigar $ a) ++ "\n"
 
@@ -101,11 +103,16 @@ instance Binary Alignment where
                        (Bchar.unpack read_name)
                        (concatMap readb (B.unpack seq))
                        (map readCig cigar_ops)
+                       0
 
 instance Show Header where
-    show s = case text s of
-      Nothing -> concatMap (\ x -> show x ++ "\n") (refs s) 
-      Just t -> t ++ "\n" ++ concatMap (\ x -> show x ++ "\n") (refs s)
+    show s =
+      case text s of
+        Nothing -> printRefs $ refs s
+        Just t -> "@HD\t" ++ t ++ "\n" ++ (printRefs $ refs s)
+      where
+        printRefs rs =
+          concatMap (\ x -> "@SQ\tSN:" ++ x ++ "\n") rs
 
 data Bamfile = Bamfile { header      :: IO Header,
                          pileup      :: Pos -> IO [Alignment],
