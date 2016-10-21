@@ -25,6 +25,8 @@ import Bio.Data.Location
 import Control.Applicative
 import Control.Monad
 
+import GHC.IO.Handle (hDuplicate)
+
 data Bgzf = Bgzf {
     id1     :: Int,
     cdata   :: L.ByteString,
@@ -190,22 +192,26 @@ openBam path mindex = do
   let
     pileup p = case mindex of
                   Just index -> do
-                    hSeek h AbsoluteSeek $ fst $
+                    h' <- hDuplicate h
+                    hSeek h' AbsoluteSeek $ fst $
                       head (uncurry (offsets index (ref p)) (interval p))
-                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h
+                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h'
                     return $ runGet (getReadsR p) bs
                   Nothing -> do
-                    hSeek h AbsoluteSeek 0
-                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h
+                    h' <- hDuplicate h
+                    hSeek h' AbsoluteSeek 0
+                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h'
                     return $ runGet (getReadsR p) bs
 
     header = do
-      hSeek h AbsoluteSeek 0
-      runGet getHeader . L.concat . runGet getBlocks <$> L.hGetContents h
+      h' <- hDuplicate h
+      hSeek h' AbsoluteSeek 0
+      runGet getHeader . L.concat . runGet getBlocks <$> L.hGetContents h'
 
     alignments = do
-      hSeek h AbsoluteSeek 0
-      bs <- L.concat . tail <$> runGet getBlocks <$> L.hGetContents h
+      h' <- hDuplicate h
+      hSeek h' AbsoluteSeek 0
+      bs <- L.concat . tail <$> runGet getBlocks <$> L.hGetContents h'
 --      _ <- runGet getHeader bs
       return $ runGet getReads bs 
 
