@@ -33,12 +33,10 @@ main = do
 ```
 
 ## Issues
-  * Bamfile handle is closed after `pileup`, `alignments`, or `header`. I think
-    this is because of the way I'm using lazy bytestrings.
+  * A conduit or pipes implementation would be better than lazy IO
   * To include all reads that overlap an interval, subtract the max read length
-    from the begining of the position interval. (Until CIGAR strings are
-    parsed).
+    from the begining of the position interval. TODO: parse CIGAR strings 
   * Native 0-based positions are assumed. This is an ontological can of worms.
   * `put` function of Binary instance for alignments is not implemented.
   * Indexing does not "jump gaps"; it only seeks to the first alignment in the
-    requested interval.
+    requested interval and reads until the last covering read is hit
