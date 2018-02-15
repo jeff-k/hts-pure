@@ -1,10 +1,6 @@
 # hts-pure
-Module for manipulating next generation sequencing data, currently supporting
-Bam and Bam index files.
-
-Alignments are instances of Binary and Show to support reading from Bam and
-writing to Sam format. The namespace anticipates Cram and additional binary
-filetypes will be supported.
+Module for manipulating high-throughput sequencing data with streaming data
+structures, targeting the samtools family of file types.
 
 This implementation intends to match the SAMv1 specification available at
 https://github.com/samtools/hts-specs
@@ -13,27 +9,29 @@ https://github.com/samtools/hts-specs
 Filter reads with a mapping quality less than 25:
 
 ```haskell
+import Conduit
 import Bio.Alignment.Bam
 
 main = do
-  bam <- openBam "bamfile.bam" Nothing
-  filter (\r -> mapq r < 25) <$> alignments bam >>= print
+  bam <- openBam "bamfile.bam"
+  runConduitRes
+        $ readBam bam .| filterC (\r -> mapq r < 25) .| printAlignment
 ```
 
 Using an index to seek within a bam file:
 
 ```haskell
+import Conduit
 import Bio.Alignment.Bam
 import Bio.Alignment.BamIndex
 
 main = do
-  index <- openIndex "bamfile.bam.bai"
-  bam <- openBam "bamfile.bam.bai" (Just index)
-  pileup bam (Pos 5 20000 30000) >>= print
+  bam <- openBam "bamfile.bam"
+  runConduitRes $ pileup bam ('Chr4', 40000, 50000) .| printAlignment
 ```
 
-## Issues
-  * A conduit or pipes implementation would be better than lazy IO
+## Notes
+  * **This is an experimental project that doesn't work**
   * To include all reads that overlap an interval, subtract the max read length
     from the begining of the position interval. TODO: parse CIGAR strings 
   * Native 0-based positions are assumed. This is an ontological can of worms.

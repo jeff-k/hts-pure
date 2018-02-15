@@ -3,17 +3,25 @@ module Bio.Alignment.Bam (openBam,closeBam,alignments,pileup,Bamfile,
 
 import System.IO
 
+import qualified Data.ByteString as BS
+import Data.ByteString.Char8
+
+import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as Bchar
 
 import Codec.Compression.Zlib.Raw
 
-import Data.Binary
-import Data.Binary.Get
-import Data.Word
-import Data.Int
-import Data.Bits
+import Conduit
+import Data.Conduit.Cereal
+
+import Data.Serialize
+import Data.Serialize.Get
+--
+--import Data.Binary
+--import Data.Binary.Get
+--import Data.Word
+--import Data.Int
+--import Data.Bits
 
 import Data.List (findIndex)
 
@@ -29,12 +37,12 @@ import GHC.IO.Handle (hDuplicate)
 
 data Bgzf = Bgzf {
     id1     :: Int,
-    cdata   :: L.ByteString,
+    cdata   :: ByteString,
     isize   :: Int,
     bsize   :: Int
 }
 
-instance Binary Bgzf where
+instance Serialize Bgzf where
   put = undefined
   get = do
     id1 <- fromIntegral <$> getWord8
@@ -50,35 +58,44 @@ instance Binary Bgzf where
     slen <- fromIntegral <$> getWord16le
     bsize <- fromIntegral <$> getWord16le
     _ <- getByteString (xlen - 6)
-    cdata <- getLazyByteString (fromIntegral (bsize - xlen - 19))
+    cdata <- getByteString (fromIntegral (bsize - xlen - 19))
     crc32 <- getWord32le
     isize <- fromIntegral <$> getWord32le
     
     return $ Bgzf id1 cdata isize bsize
 
-
 instance Show Bgzf where
-  show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++ "\t" ++ (show . bsize $ bz) ++ "\n"
+  show bz = (show . id1 $ bz) ++ "\t" ++ (show . isize $ bz) ++
+            "\t" ++ (show . bsize $ bz) ++ "\n"
 
-data Header = Header { text :: Maybe String, refs :: [String] }
+data Header = Header { text :: Maybe Text, refs :: [Text] }
+
+instance Show Header where
+    show s =
+      case text s of
+        Nothing -> printRefs $ refs s
+        Just t -> "@HD\t" ++ (unpack t) ++ "\n" ++ (printRefs $ refs s)
+      where
+        printRefs rs =
+          concatMap (\ x -> "@SQ\tSN:" ++ (unpack x) ++ "\n") rs
 
 data Alignment = Alignment {
     pos         :: Int,
     refID       :: Int,
     mapq        :: Int,
-    read_name   :: String,
-    seq_a       :: String,
+    read_name   :: Text,
+    seq_a       :: B.ByteString,
     cigar       :: [Cigar],
     flag        :: Int
 }
 
 instance Show Alignment where
     show a = read_name a ++ "\t" ++ (show . flag $ a) ++ "\t" ++
-             (show . pos $ a) ++ "\t" ++
-             (show . refID $ a) ++ "\t" ++ (show . mapq $ a) ++ "\t" ++
-             seq_a a ++ "\t" ++ (show . cigar $ a) ++ "\n"
+             (show . pos $ a) ++ "\t" ++ (show . refID $ a) ++ "\t" ++
+             (show . mapq $ a) ++ "\t" ++ seq_a a ++ "\t" ++
+             (show . cigar $ a) ++ "\n"
 
-instance Binary Alignment where
+instance Serialize Alignment where
   put = undefined
   get = do
     l <- fromIntegral <$> getWord32le
@@ -93,7 +110,7 @@ instance Binary Alignment where
     next_refID <- getWord32le
     next_pos <- getWord32le
     tlen <- fromIntegral <$> getWord32le
-    read_name <- getByteString l_read_name
+    read_name <- E.decodeUtf8 <$> getByteString l_read_name
     cigar_ops <- replicateM n_cigar_op getWord32le
     seq <- getByteString (div (l_seq + 1) 2)
     qual <- getByteString l_seq 
@@ -102,121 +119,73 @@ instance Binary Alignment where
     return $ Alignment pos
                        refID
                        mapq
-                       (Bchar.unpack read_name)
-                       (concatMap readb (B.unpack seq))
-                       (map readCig cigar_ops)
+                       read_name)
+                       seq -- (concatMap readb (B.unpack seq))
+                       []  -- (map readCig cigar_ops)
                        0
 
-instance Show Header where
-    show s =
-      case text s of
-        Nothing -> printRefs $ refs s
-        Just t -> "@HD\t" ++ t ++ "\n" ++ (printRefs $ refs s)
-      where
-        printRefs rs =
-          concatMap (\ x -> "@SQ\tSN:" ++ x ++ "\n") rs
+data Bam = Bam { header      :: Header,
+                 index       :: Maybe Index,
+                 pileup      :: Pos -> ConduitM () Alignment IO (),
+                 readBam     :: ConduitM () Alignment IO ()
+               }
 
-data Bamfile = Bamfile { header      :: IO Header,
-                         pileup      :: Pos -> IO [Alignment],
-                         alignments  :: IO [Alignment],
-                         closeBam    :: IO () }
-
-readb :: Word8 -> String
+--readb :: Word8 -> String
 readb s =
     let l = (fromIntegral $ 15 .&. s)
         b = fromIntegral $ s `shiftR` 4
         t = "=ACMGRSVTWYHKDBN" in
             [t!!b, t!!l]
 
-getRef :: Get String
+getRef :: Get Text
 getRef = do
     l_name <- fromIntegral <$> getWord32le
-    name <- getByteString l_name 
+    name <- E.decodeUtf8 <$> getByteString l_name 
     l_ref <- fromIntegral <$> getWord32le
-    return $ Bchar.unpack (B.init name)
+    return name
 
-getHeader :: Get Header
-getHeader = do
+instance Serialize Header where
+  put = undefined
+  get = do
     getByteString 4
     l_header <- fromIntegral <$> getWord32le
-    t <- getByteString l_header
+    t <- E.decodeUtf8 <$> getByteString l_header
     n_ref <- fromIntegral <$> getWord32le
     refs <- replicateM n_ref getRef
     case l_header of
       0 -> return $ Header Nothing refs
-      _ -> return $ Header (Just (Bchar.unpack t)) refs
+      _ -> return $ Header (Just t) refs
 
-deZ :: Bgzf -> L.ByteString
-deZ block = decompressWith params (cdata block)
+deZ :: Bgzf -> ByteString
+deZ block = L.toStrict $ decompressWith params (L.fromStrict (cdata block))
   where params = defaultDecompressParams
   --DecompressParams (isize block) 2**16 Nothing True
 
-getBlocks :: Get [L.ByteString]
-getBlocks = do
-  empty <- isEmpty
-  if empty
-    then return []
-    else do
-      b <- deZ <$> (get :: Get Bgzf)
-      bs <- getBlocks
-      return (b:bs)
+-- convert a stream of bgzf blocks into a stream of bytes 
+bgzfConduit :: MonadThrow m => ConduitM ByteString Bgzf m ()
+bgzfConduit = conduitGet2 get
 
-getReads :: Get [Alignment]
-getReads = do
-  empty <- isEmpty
-  if empty
-    then return []
-    else do
-      r <- get :: Get Alignment
-      rs <- getReads
-      return (r:rs)
+bamConduit :: MonadThrow m => ConduitM ByteString Alignment m ()
+bamConduit = conduitGet2 get
 
-getReadsR :: Pos -> Get [Alignment]
-getReadsR p = do
-  empty <- isEmpty
-  if empty
-    then return []
-    else do
-      r <- get :: Get Alignment
-      rs <- getReadsR p
-      if pos r >= fromIntegral (fst $ interval p) && -- should subtract readlen
-         pos r <= fromIntegral (snd $ interval p) &&
-         refID r == ref p
-        then return (r:rs)
-        else return rs
-
-openBam :: String -> Maybe Index -> IO Bamfile
-openBam path mindex = do
+openBam :: FilePath -> IO Bam
+openBam path = do
   h <- openFile path ReadMode
   hSetBinaryMode h True
+
+  -- get first block to build header
+  header <- --
+
+  -- attempt to load index
+  index <- --
+
   let
-    pileup p = case mindex of
-                  Just index -> do
-                    h' <- hDuplicate h
-                    hSeek h' AbsoluteSeek $ fst $
-                      head (uncurry (offsets index (ref p)) (interval p))
-                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h'
-                    return $ runGet (getReadsR p) bs
-                  Nothing -> do
-                    h' <- hDuplicate h
-                    hSeek h' AbsoluteSeek 0
-                    bs <- L.concat . runGet getBlocks <$> L.hGetContents h'
-                    return $ runGet (getReadsR p) bs
+    pileup p = case index of
+      Just i -> 
+        hSeek h AbsoluteSeek $ fst $ head (uncurry (offsets i (ref p))
+                                           (interval p))
+      Nothing -> sourceHandleBS h .| bgzfConduit .| mapC deZ .| bamConduit
 
-    header = do
-      h' <- hDuplicate h
-      hSeek h' AbsoluteSeek 0
-      runGet getHeader . L.concat . runGet getBlocks <$> L.hGetContents h'
+    readBam = sourceHandleBS h .| bgzfConduit .| mapC deZ .| bamConduit
 
-    alignments = do
-      h' <- hDuplicate h
-      hSeek h' AbsoluteSeek 0
-      bs <- L.concat . tail <$> runGet getBlocks <$> L.hGetContents h'
---      _ <- runGet getHeader bs
-      return $ runGet getReads bs 
-
-    closeBam = do
-      hClose h
-      return ()
-
-  return $ Bamfile header pileup alignments closeBam
+  return $ Bamfile header index pileup readBam
